@@ -124,9 +124,33 @@
         <div id="content" class="content">
     <article class="article" itemscope itemprop="blogPost">
     
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2021/01/03/Golang-Context详解/">Golang context 详解</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-03T15:00:00.000Z" itemprop="datePublished">2021-01-03</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>
+</div>
+
+
+        </div>
+    </header>
+    
     <section class="article-body markdown-body">
         
-        <h2 id="Golang-Context详解"><a href="#Golang-Context详解" class="headerlink" title="Golang Context详解"></a>Golang Context详解</h2><p>一般接触新东西都会有三问(what/why/how),我们也从这几个角度看下golang context。</p>
+        <p>一般接触新东西都会有三问(what/why/how),我们也从这几个角度看下golang context。</p>
 <h3 id="WHAT-IS-CONTEXT"><a href="#WHAT-IS-CONTEXT" class="headerlink" title="WHAT IS CONTEXT"></a>WHAT IS CONTEXT</h3><p>Goroutine和Channel是go语言的特色，并发编程会使用协程来处理工作，通道用来协程之间的通信。主协程创建子协程，子协程再创建子协程，就会形成一个协程树状结构，协程之间可以采用通道来进行通信。<br>每个Goroutine在执行之前，都要先知道程序当前的执行状态，通常将这些执行状态都会封装Context变量中，传递给要执行的Goroutine中。比如在网络编程中，处理一个网络Request时，我们可能需要开启不同的Goroutine来获取数据与逻辑处理。而这些Goroutine可能需要共享Request的一些信息；同时当Request异常、超时或者被取消的时候，所有从这个Request创建的所有Goroutine都应该被结束。</p>
 <h3 id="WHY-CONTEXT"><a href="#WHY-CONTEXT" class="headerlink" title="WHY CONTEXT"></a>WHY CONTEXT</h3><p>上面我们说过，由于异常、超时或者被取消的情况，都应该结束该Request创建的所有Goroutine。假如不用context，我们看怎么去控制协程树。</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> services</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"time"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">StartWork</span><span class="params">()</span></span> &#123;</span><br><span class="line">	data := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">10</span>)</span><br><span class="line">	done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;) <span class="comment">// 使用一个chan来控制协程的退出</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">defer</span> <span class="built_in">close</span>(data)</span><br><span class="line">	<span class="comment">// consumer</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> &#123;</span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> &lt;-done:</span><br><span class="line">				fmt.Println(<span class="string">"child process interrupt..."</span>)</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				fmt.Printf(<span class="string">"send message: %d\n"</span>, &lt;-data)</span><br><span class="line">				time.Sleep(time.Second * <span class="number">1</span>)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// producer</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		data &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second)</span><br><span class="line">	<span class="comment">// 退出协程</span></span><br><span class="line">	<span class="built_in">close</span>(done)</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">	fmt.Println(<span class="string">"main process exit!"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
