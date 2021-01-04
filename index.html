@@ -127,6 +127,120 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/01/04/logrotate-config/">日志切割工具 logrotate 配置</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-04T05:05:00.000Z" itemprop="datePublished">2021-01-04</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="1-安装"><a href="#1-安装" class="headerlink" title="1. 安装"></a>1. 安装</h3><p>Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装</p>
+<h4 id="apt-yum-安装"><a href="#apt-yum-安装" class="headerlink" title="apt/yum 安装"></a>apt/yum 安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# yum install logrotate</span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line">Package logrotate-3.8.6-14.tl2.x86_64 already installed and latest version</span><br><span class="line">Nothing to do</span><br><span class="line">[root@VM-145-82-centos ~]#</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@VM-0-15-ubuntu:[10:59:47]:~# apt-get install logrotate</span><br><span class="line">Reading package lists... Done</span><br><span class="line">Building dependency tree</span><br><span class="line">Reading state information... Done</span><br><span class="line">logrotate is already the newest version (3.8.7-2ubuntu2.16.04.2).</span><br><span class="line">0 upgraded, 0 newly installed, 0 to remove and 385 not upgraded.</span><br></pre></td></tr></table></figure>
+
+<h4 id="源码安装"><a href="#源码安装" class="headerlink" title="源码安装"></a>源码安装</h4><p>github地址: <a href="https://github.com/logrotate/logrotate" target="_blank" rel="noopener">https://github.com/logrotate/logrotate</a> </p>
+<p>按照github安装</p>
+<h3 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h3><p>logrotate是利用系统crontab定时执行的，在目录/etc/cron.daily中有个logrotate的脚本。如果需要，可以在cron.hourly，也可以在/etc/crontab中增加自己的配置。</p>
+<p>这些配置都是独立的，结合自己的配置以及服务的日志量来自定义达到最优配置。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/sh</span><br><span class="line"></span><br><span class="line">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf</span><br><span class="line">EXITVALUE=$?</span><br><span class="line">if [ $EXITVALUE != 0 ]; then</span><br><span class="line">    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"</span><br><span class="line">fi</span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
+
+<p>配置文件主要存放在目录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# ls /etc/logrotate.d/</span><br><span class="line">conman  cron.30m  iptraf-ng  mgetty  mongodb  mysql  psacct  syslog  yum</span><br></pre></td></tr></table></figure>
+
+<p>一般安装会添加常用组件的配置，在生产环境中，我们会自定义一些配置。</p>
+<p>如下是本人常用的配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/data/log/*.log</span><br><span class="line">&#123;</span><br><span class="line">    daily</span><br><span class="line">    notifempty    </span><br><span class="line">    copytruncate</span><br><span class="line">    compress</span><br><span class="line">    rotate 60</span><br><span class="line">    missingok</span><br><span class="line">    dateext</span><br><span class="line">    dateformat -%s</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th><strong>配置参数</strong></th>
+<th><strong>说明</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>monthly</strong></td>
+<td>日志文件将按月轮循。其它可用值为’daily’，’weekly’或者’yearly’。</td>
+</tr>
+<tr>
+<td><strong>rotate 5</strong></td>
+<td>一次将存储5个归档日志。对于第六个归档，时间最久的归档将被删除。</td>
+</tr>
+<tr>
+<td><strong>compress</strong></td>
+<td>在轮循任务完成后，已轮循的归档将使用gzip进行压缩。</td>
+</tr>
+<tr>
+<td><strong>delaycompress</strong></td>
+<td>总是与compress选项一起用，delaycompress选项指示logrotate不要将最近的归档压缩，压缩将在下一次轮循周期进行。这在你或任何软件仍然需要读取最新归档时很有用。</td>
+</tr>
+<tr>
+<td><strong>missingok</strong></td>
+<td>在日志轮循期间，任何错误将被忽略，例如“文件无法找到”之类的错误。</td>
+</tr>
+<tr>
+<td><strong>notifempty</strong></td>
+<td>如果日志文件为空，轮循不会进行。</td>
+</tr>
+<tr>
+<td><strong>create 644 root root</strong></td>
+<td>以指定的权限创建全新的日志文件，同时logrotate也会重命名原始日志文件。</td>
+</tr>
+<tr>
+<td><strong>size</strong></td>
+<td>日志文件大小的配置，如果没达到这个大小，将不会压缩</td>
+</tr>
+<tr>
+<td><strong>dateext</strong></td>
+<td>压缩文件带上日期，默认会使用编号(log.log.1.gz)，该选项会是每次压缩都带上日期，如 log.log-2020</td>
+</tr>
+<tr>
+<td><strong>dateformat</strong></td>
+<td>日期格式  支持 %Y%m%d(年月日) %s(时间戳)</td>
+</tr>
+<tr>
+<td><strong>postrotate/endscript</strong></td>
+<td>在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行。在这种情况下，rsyslogd 进程将立即再次读取其配置并继续运行。</td>
+</tr>
+</tbody></table>
+<h3 id="3-执行频度定制"><a href="#3-执行频度定制" class="headerlink" title="3. 执行频度定制"></a>3. 执行频度定制</h3><p>logrotate是在cron中执行的，因此要自定义执行频度，可以增加crontab配置</p>
+<p>比如，我们的服务需要每半小时压缩一次 hourly是不满足我们的需求，就需要在crontab中增加一条记录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# crontab -e</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> rotate nginx log every 30min</span><br><span class="line">*/30 * * * * /usr/sbin/logrotate  /etc/logrotate.d/cron.30m/*  -f</span><br></pre></td></tr></table></figure>
+
+<p>可以将30min执行的所有配置文件放到一个目录，执行30min命令。</p>
+<h4 id="4-手动执行"><a href="#4-手动执行" class="headerlink" title="4. 手动执行"></a>4. 手动执行</h4><p>配置文件是否配置成功，执行后是什么效果。logrotate提供测试的功能。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# logrotate -d /etc/logrotate.d/cron.30m/*</span><br><span class="line">reading config file /etc/logrotate.d/cron.30m/nginx</span><br><span class="line">Allocating hash table for state file, size 15360 B</span><br><span class="line"></span><br><span class="line">Handling 1 logs</span><br><span class="line"></span><br><span class="line">rotating pattern: /var/log/nginx/*log  after 1 days (10 rotations)</span><br><span class="line">empty log files are not rotated, old logs are removed</span><br><span class="line">considering log /var/log/nginx/access.log</span><br><span class="line">  log does not need rotating (log is empty)considering log /var/log/nginx/error.log</span><br><span class="line">  log does not need rotating (log is empty)not running postrotate script, since no logs were rotated</span><br></pre></td></tr></table></figure>
+
+<p>执行后，会输出文件怎么变更，压缩重命名等。比如上面会提示 “old logs are removed” “10 rotate” 等记录。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>logrotate工具对于防止因庞大的日志文件而耗尽存储空间是十分有用的。配置完毕后，进程是全自动的，可以长时间在不需要人为干预下运行。可以根据需求及日志量定制自己的日志切割规则。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2021/01/03/Golang-Context详解/">Golang context 详解</a>
         </h1>
         
@@ -883,105 +997,6 @@
 <li>如果私钥是从其他地方拷贝，最好将id_rsa.pub也拷贝或者原来的删除，否则会影响登录；</li>
 </ol>
 </blockquote>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/17/redis-install/">redis 安装</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-17T01:22:21.000Z" itemprop="datePublished">2019-09-17</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/redis/">redis</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><ol>
-<li>通过wget直接下载redis源码安装包，目前最新半5.0的</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://download.redis.io/releases/redis-5.0.5.tar.gz</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>解压</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar -xvf redis-5.0.5.tar.gz</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>进入源码目录</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cd redis-5.0.5/src</span><br></pre></td></tr></table></figure>
-
-<ol start="4">
-<li>编译</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make &amp;&amp; make install</span><br></pre></td></tr></table></figure>
-
-<h3 id="运行"><a href="#运行" class="headerlink" title="运行"></a>运行</h3><ul>
-<li>安装成功后，配置文件/etc/redis.conf</li>
-</ul>
-<p>默认daemon 为no，ip：127.0.0.1直接运行</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis-server /etc/redis.conf</span><br></pre></td></tr></table></figure>
-
-<p>运行后出现下图，则运行成功：</p>
-<p><img src="/2019/09/17/redis-install/redis-start.png" alt="redis-start"></p>
-<ul>
-<li>访问</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# redis-cli</span><br><span class="line">127.0.0.1:6379&gt; set foo bar</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; keys *</span><br><span class="line">1) &quot;foo&quot;</span><br><span class="line">127.0.0.1:6379&gt;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>修改配置文件，daemon/ip,基本修改，重新运行便可启动了</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"># By default Redis does not run as a daemon. Use &apos;yes&apos; if you need it.</span><br><span class="line"># Note that Redis will write a pid file in /var/run/redis.pid when daemonized.</span><br><span class="line"></span><br><span class="line">daemonize yes</span><br><span class="line"></span><br><span class="line"># Examples:</span><br><span class="line">#</span><br><span class="line"># bind 192.168.1.100 10.0.0.1</span><br><span class="line"># bind 127.0.0.1 ::1</span><br><span class="line">#</span><br><span class="line"># ~~~ WARNING ~~~ If the computer running Redis is directly exposed to the</span><br><span class="line"># internet, binding to all the interfaces is dangerous and will expose the</span><br><span class="line"># instance to everybody on the internet. So by default we uncomment the</span><br><span class="line"># following bind directive, that will force Redis to listen only into</span><br><span class="line"># the IPv4 loopback interface address (this means Redis will be able to</span><br><span class="line"># accept connections only from clients running into the same computer it</span><br><span class="line"># is running).</span><br><span class="line">#</span><br><span class="line"># IF YOU ARE SURE YOU WANT YOUR INSTANCE TO LISTEN TO ALL THE INTERFACES</span><br><span class="line"># JUST COMMENT THE FOLLOWING LINE.</span><br><span class="line"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span><br><span class="line"></span><br><span class="line">bind 127.0.0.1</span><br></pre></td></tr></table></figure>
-
-<h3 id="安装过程种可能出现的问题"><a href="#安装过程种可能出现的问题" class="headerlink" title="安装过程种可能出现的问题"></a>安装过程种可能出现的问题</h3><ol>
-<li>centos没有安装gcc，会出现</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">command not found: CC</span><br></pre></td></tr></table></figure>
-
-<p>安装gcc</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install -y gcc</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>make时报如下错误：</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">zmalloc.h:50:31: error: jemalloc/jemalloc.h: No such file or directory</span><br><span class="line">zmalloc.h:55:2: error: #error &quot;Newer version of jemalloc required&quot;</span><br></pre></td></tr></table></figure>
-
-<p>原因是jemalloc重载了Linux下的ANSI C的malloc和free函数。解决办法：make时添加参数。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make MALLOC=libc</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>make之后，会出现一句提示</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Hint: To run &apos;make test&apos; is a good idea ;)</span><br></pre></td></tr></table></figure>
-
-<p>但是不测试，通常是可以使用的。若我们运行make test ，会有如下提示</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">You need tcl 8.5 or newer in order to run the Redis test</span><br><span class="line">make: *** [test] Error 1</span><br></pre></td></tr></table></figure>
-
-<p>解决办法是用yum安装tcl8.5（或去tcl的官方网站<a href="http://www.tcl.tk/下载8.5版本，并参考官网介绍进行安装）" target="_blank" rel="noopener">http://www.tcl.tk/下载8.5版本，并参考官网介绍进行安装）</a></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install tcl</span><br></pre></td></tr></table></figure>
-
 
         
     </section>
