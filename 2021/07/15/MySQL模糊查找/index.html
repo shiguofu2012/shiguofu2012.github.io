@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>Mysql模糊查找 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="Mysql模糊查找在业务开发过程中，经常会碰到需要搜索的需求；结合msyql在模糊搜索的时候，很明显会用到like语句，一般情况下，在数据量比较小的时候，按行检索的效率也不是很明显的低效，但当达到百万级，千万级数据量的时候，查询的效率低下是一回事，很可能把数据库拖垮，严重影响可用性。这个时候提高查询效率就显得很重要！模糊查找一般情况，我们在查找时候的写法(field肯定是已经建了索引):1SELECT `column` FROM `table` WHERE `field` like...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Mysql模糊查找"><span class="toc-number">1.</span> <span class="toc-text">Mysql模糊查找</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#模糊查找"><span class="toc-number">1.1.</span> <span class="toc-text">模糊查找</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#LOCATE（’substr’-str-start-pos）"><span class="toc-number">1.2.</span> <span class="toc-text">LOCATE（’substr’,str,start_pos）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#POSITION-‘substr’-IN-field"><span class="toc-number">1.3.</span> <span class="toc-text">POSITION(‘substr’ IN field)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#INSTR-str-’substr’"><span class="toc-number">1.4.</span> <span class="toc-text">INSTR(str,’substr’)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#FIND-IN-SET"><span class="toc-number">1.5.</span> <span class="toc-text">FIND_IN_SET</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">1.6.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            Mysql模糊查找
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/07/15/MySQL模糊查找/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-07-15T03:08:51.000Z" itemprop="datePublished">2021-07-15</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Mysql/">Mysql</a>, <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="Mysql模糊查找"><a href="#Mysql模糊查找" class="headerlink" title="Mysql模糊查找"></a>Mysql模糊查找</h3><blockquote>
+<p>在业务开发过程中，经常会碰到需要搜索的需求；结合msyql在模糊搜索的时候，很明显会用到like语句，一般情况下，在数据量比较小的时候，按行检索的效率也不是很明显的低效，但当达到百万级，千万级数据量的时候，查询的效率低下是一回事，很可能把数据库拖垮，严重影响可用性。这个时候提高查询效率就显得很重要！</p>
+</blockquote>
+<h4 id="模糊查找"><a href="#模糊查找" class="headerlink" title="模糊查找"></a>模糊查找</h4><p>一般情况，我们在查找时候的写法(field肯定是已经建了索引):</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="string">`column`</span> <span class="keyword">FROM</span> <span class="string">`table`</span> <span class="keyword">WHERE</span> <span class="string">`field`</span> <span class="keyword">like</span> <span class="string">'%keyword%'</span>;</span><br></pre></td></tr></table></figure>
+
+<p>上面的语句用explain解释来看，SQL语句并未使用索引，而是全表扫描，数据量比较大的时候，这效率可想而知。</p>
+<p>对比下面的写法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT `column` FROM `table` WHERE `field` like &apos;keyword%&apos;;</span><br></pre></td></tr></table></figure>
+
+<p>这样的写法用explain解释看到，SQL语句使用了索引，搜索的效率大大的提高了。</p>
+<p>但是有的时候，我们在做功能需求的时候，并非要想查询的关键词都在开头，所以如果不是特别的要求，”keywork%”并不能适应所有的查找。</p>
+<p>所以，我们需要另一种方法。</p>
+<h4 id="LOCATE（’substr’-str-start-pos）"><a href="#LOCATE（’substr’-str-start-pos）" class="headerlink" title="LOCATE（’substr’,str,start_pos）"></a>LOCATE（’substr’,str,start_pos）</h4><p>Mysql提供LOCATE函数，该方法返回查询字符串在被查询字段下的索引。第一个参数为要查询的字符串，第二个为数据库中的字段名称，第三个代表从字段对应的值的第几个字符串开始查找.</p>
+<p>例， 有如下表：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`meetings`</span> (</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> AUTO_INCREMENT,</span><br><span class="line">  <span class="string">`des`</span> <span class="built_in">varchar</span>(<span class="number">225</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">''</span>,</span><br><span class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`id`</span>)</span><br><span class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span>;</span><br></pre></td></tr></table></figure>
+
+<p>以下sql则查询des字段匹配“hello”的行数。这个“hello” 在des中的可以是开头，可以是结尾，也可以是中间，非常方便。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">from</span> meetings <span class="keyword">where</span> <span class="keyword">LOCATE</span>(<span class="string">'hello'</span>,<span class="string">`des`</span>) &gt; <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
+
+<p>LOCTATE这个函数有第三个参数，是查找的起始位置，比如可以在上面的sql中加入：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">from</span> meetings <span class="keyword">where</span> <span class="keyword">LOCATE</span>(<span class="string">'hello'</span>,<span class="string">`des`</span>, <span class="number">5</span>) &gt; <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
+
+<p>我们使用explain来检查执行是否命中索引，会发现对搜索的字段如果存在索引，确实可以命中。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain SELECT * from meetings where LOCATE('hello',`des`) &gt; 0\G</span><br><span class="line">*************************** 1. row ***************************</span><br><span class="line">           id: 1</span><br><span class="line">  select_type: SIMPLE</span><br><span class="line">        table: meetings</span><br><span class="line">   partitions: NULL</span><br><span class="line">         type: index</span><br><span class="line">possible_keys: NULL</span><br><span class="line">          key: des_meeting</span><br><span class="line">      key_len: 227</span><br><span class="line">          ref: NULL</span><br><span class="line">         rows: 3</span><br><span class="line">     filtered: 100.00</span><br><span class="line">        Extra: Using where; Using index</span><br><span class="line">1 row in <span class="keyword">set</span>, <span class="number">1</span> <span class="keyword">warning</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<p>如上explain的输出语句，确实使用了索引。</p>
+<h4 id="POSITION-‘substr’-IN-field"><a href="#POSITION-‘substr’-IN-field" class="headerlink" title="POSITION(‘substr’ IN field)"></a>POSITION(‘substr’ IN <code>field</code>)</h4><p>position可以看做是locate的别名，功能跟locate一样。其实个人理解，position只是查找是否包含子串，不能指定位置开始。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">from</span> meetings <span class="keyword">where</span> <span class="keyword">POSITION</span>(<span class="string">'hello'</span> <span class="keyword">in</span> <span class="string">`des`</span>);</span><br></pre></td></tr></table></figure>
+
+<h4 id="INSTR-str-’substr’"><a href="#INSTR-str-’substr’" class="headerlink" title="INSTR(str,’substr’)"></a>INSTR(<code>str</code>,’substr’)</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="string">`column`</span> <span class="keyword">FROM</span> <span class="string">`table`</span> <span class="keyword">WHERE</span> <span class="keyword">INSTR</span>(<span class="string">`field`</span>, <span class="string">'keyword'</span> )&gt;<span class="number">0</span></span><br></pre></td></tr></table></figure>
+
+<p>这个INSTR也是子串判断</p>
+<h4 id="FIND-IN-SET"><a href="#FIND-IN-SET" class="headerlink" title="FIND_IN_SET"></a>FIND_IN_SET</h4><p>FIND_IN_SET(str1,str2)</p>
+<p>返回str2中str1所在的位置索引，其中str2必须以”,”分割开。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> person <span class="keyword">WHERE</span> FIND_IN_SET(<span class="string">'apply'</span>,<span class="keyword">name</span>);</span><br></pre></td></tr></table></figure>
+
+<p>name的内容是以逗号分隔的，如</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apple,pear,orange</span><br></pre></td></tr></table></figure>
+
+<p>就可以使用FIND_IN_SET</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> * <span class="keyword">from</span> <span class="string">`table`</span> <span class="keyword">where</span> FIND_IN_SET(<span class="string">'apple'</span>, <span class="keyword">name</span>);</span><br></pre></td></tr></table></figure>
+
+<p>个人觉得这个主要是针对sql数组数据的查找; 数组数据以逗号分隔存储到一个字段，FIND_IN_SET可以快速找到包含数组元素的行。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>Mysql在进行模糊查找需要注意，前缀匹配的时候会用到索引，前后都模糊，则无法使用索引；</p>
+<p>可以使用Mysql提供的函数来“曲线救国”来命中索引。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

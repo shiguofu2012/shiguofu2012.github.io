@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>linux 一些配置 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="TCP最大监听队列修改修改somaxconn参数值该内核参数默认值一般是128（定义了系统中每一个端口最大的监听队列的长度），对于负载很大的服务程序来说大大的不够。一般会将它修改为2048或者更大。1echo 2048 &amp;gt; /proc/sys/net/core/somaxconn    # 临时修改，立马生效；系统重启丢失在/etc/sysctl.conf中添加如下1net.core.somaxconn = 2048然后在终端中执行1sysctl -predis ...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#TCP最大监听队列修改"><span class="toc-number">1.</span> <span class="toc-text">TCP最大监听队列修改</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#redis-（overcommit-memory）WARNING"><span class="toc-number">2.</span> <span class="toc-text">redis （overcommit_memory）WARNING</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#redis-Transparent-Huge-Pages-WARNING"><span class="toc-number">3.</span> <span class="toc-text">redis (Transparent Huge Pages) WARNING</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#打开文件数的限制"><span class="toc-number">4.</span> <span class="toc-text">打开文件数的限制</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#查看所有进程文件打开数"><span class="toc-number">4.1.</span> <span class="toc-text">查看所有进程文件打开数</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#查看某个进程打开文件数"><span class="toc-number">4.2.</span> <span class="toc-text">查看某个进程打开文件数</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#查看系统中各个进程分别打开了多少句柄数"><span class="toc-number">4.3.</span> <span class="toc-text">查看系统中各个进程分别打开了多少句柄数</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SSH-密钥登录"><span class="toc-number">5.</span> <span class="toc-text">SSH 密钥登录</span></a></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            linux 一些配置
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2019/09/17/linux-config/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2019-09-17T02:49:59.000Z" itemprop="datePublished">2019-09-17</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/linux/">linux</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="TCP最大监听队列修改"><a href="#TCP最大监听队列修改" class="headerlink" title="TCP最大监听队列修改"></a>TCP最大监听队列修改</h4><p>修改somaxconn参数值</p>
+<p>该内核参数默认值一般是128（定义了系统中每一个端口最大的监听队列的长度），对于负载很大的服务程序来说大大的不够。一般会将它修改为2048或者更大。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 2048 &gt; /proc/sys/net/core/somaxconn    # 临时修改，立马生效；系统重启丢失</span><br></pre></td></tr></table></figure>
+
+<p>在/etc/sysctl.conf中添加如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">net.core.somaxconn = 2048</span><br></pre></td></tr></table></figure>
+
+<p>然后在终端中执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sysctl -p</span><br></pre></td></tr></table></figure>
+
+<h4 id="redis-（overcommit-memory）WARNING"><a href="#redis-（overcommit-memory）WARNING" class="headerlink" title="redis （overcommit_memory）WARNING"></a>redis （overcommit_memory）WARNING</h4><p>redis 有时background save db不成功，log发现下面的告警，很可能由它引起的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">17427:M 17 Sep 2019 10:54:12.730 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add &apos;vm.overcommit_memory = 1&apos; to /etc/sysctl.conf and then reboot or run the command &apos;sysctl vm.overcommit_memory=1&apos; for this to take effect.</span><br></pre></td></tr></table></figure>
+
+<p>看到这个顺道去查了下，发现</p>
+<p><strong>内核参数overcommit_memory</strong> </p>
+<p>它是内存分配策略，可选值：0、1、2。</p>
+<p>0 – 表示内核将检查是否有足够的可用内存供应用进程使用；如果有足够的可用内存，内存申请允许；否则，内存申请失败，并把错误返回给应用进程。<br>1 – 表示内核允许分配所有的物理内存，而不管当前的内存状态如何。<br>2 – 表示内核允许分配超过所有物理内存和交换空间总和的内存</p>
+<p><strong>Overcommit 与 OOM</strong></p>
+<p>   Linux对大部分申请内存的请求都回复”yes”，以便能跑更多更大的程序。因为申请内存后，并不会马上使用内存。这种技术叫做<strong>Overcommit</strong>。当linux发现内存不足时，会发生OOM killer(OOM=out-of-memory)。它会选择杀死一些进程(用户态进程，不是内核线程)，以便释放内存。</p>
+<p>   当oom-killer发生时，linux会选择杀死哪些进程？选择进程的函数是oom_badness函数(在mm/oom_kill.c中)，该函数会计算每个进程的点数(0~1000)。点数越高，这个进程越有可能被杀死。每个进程的点数跟oom_score_adj有关，而且oom_score_adj可以被设置(-1000最低，1000最高)。</p>
+<p><strong>解决办法</strong></p>
+<p>同样是修改内核参数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 1 &gt; /proc/sys/vm/overcommit_memory # 临时修改，立马生效；系统重启丢失</span><br></pre></td></tr></table></figure>
+
+<p>编辑/etc/sysctl.conf ，新增下面一行，然后sysctl -p 使配置文件生效</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vm.overcommit_memory=1</span><br></pre></td></tr></table></figure>
+
+<h4 id="redis-Transparent-Huge-Pages-WARNING"><a href="#redis-Transparent-Huge-Pages-WARNING" class="headerlink" title="redis (Transparent Huge Pages) WARNING"></a>redis (<strong>Transparent Huge Pages</strong>) WARNING</h4><p>redis 在centos 7 启动后有警告</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">17427:M 17 Sep 2019 10:54:12.730 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command &apos;echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled&apos; as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.</span><br></pre></td></tr></table></figure>
+
+<p><strong>Transparent Huge Pages的一些官方介绍</strong></p>
+<blockquote>
+<p>The kernel will always attempt to satisfy a memory allocation using huge pages. If no huge pages are available (due to non availability of physically continuous memory for example) the kernel will fall back to the regular 4KB pages. THP are also swappable (unlike hugetlbfs). This is achieved by breaking the huge page to smaller 4KB pages, which are then swapped out normally.</p>
+</blockquote>
+<p><strong>禁止透明大页</strong></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost 6379]# cat /sys/kernel/mm/transparent_hugepage/enabled</span><br><span class="line">always madvise [never]</span><br></pre></td></tr></table></figure>
+
+<p>默认开启的，因此出现找不到文件，就是开启的</p>
+<h4 id="打开文件数的限制"><a href="#打开文件数的限制" class="headerlink" title="打开文件数的限制"></a>打开文件数的限制</h4><p>用户级的文件数限制, 可以通过 ulimit -n 来查看</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ulimit -n    # 查看当前用户能够打开的最大文件数</span><br><span class="line">1024</span><br></pre></td></tr></table></figure>
+
+<p>而系统级别的文件数限制，则通过sysctl -a来查看</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# sysctl -a | grep file-max</span><br><span class="line">fs.file-max = 284775</span><br></pre></td></tr></table></figure>
+
+<p>一般系统最大文件数会根据硬件资源计算出来的，如果强行需要修改最大打开文件数可以通过ulimit -n 10240来修改，当这种方式只对当前进程有效，如果需要永久有效则需要修改<strong>/etc/security/limits.conf</strong>（重启系统生效）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">#&lt;type&gt; can have the two values:</span><br><span class="line">#        - &quot;soft&quot; for enforcing the soft limits</span><br><span class="line">#        - &quot;hard&quot; for enforcing hard limits</span><br><span class="line">#</span><br><span class="line">#&lt;item&gt; can be one of the following:</span><br><span class="line">#        - core - limits the core file size (KB)</span><br><span class="line">#        - data - max data size (KB)</span><br><span class="line">#        - fsize - maximum filesize (KB)</span><br><span class="line">#        - memlock - max locked-in-memory address space (KB)</span><br><span class="line">#        - nofile - max number of open file descriptors</span><br><span class="line">#        - rss - max resident set size (KB)</span><br><span class="line">#        - stack - max stack size (KB)</span><br><span class="line">#        - cpu - max CPU time (MIN)</span><br><span class="line">#        - nproc - max number of processes</span><br><span class="line">#        - as - address space limit (KB)</span><br><span class="line">#        - maxlogins - max number of logins for this user</span><br><span class="line">#        - maxsyslogins - max number of logins on the system</span><br><span class="line">#        - priority - the priority to run user process with</span><br><span class="line">#        - locks - max number of file locks the user can hold</span><br><span class="line">#        - sigpending - max number of pending signals</span><br><span class="line">#        - msgqueue - max memory used by POSIX message queues (bytes)</span><br><span class="line">#        - nice - max nice priority allowed to raise to values: [-20, 19]</span><br><span class="line">#        - rtprio - max realtime priority</span><br><span class="line">#</span><br><span class="line">#&lt;domain&gt;      &lt;type&gt;  &lt;item&gt;         &lt;value&gt;</span><br><span class="line">#</span><br><span class="line"></span><br><span class="line">#*               soft    core            0</span><br><span class="line">#*               hard    rss             10000</span><br><span class="line">#@student        hard    nproc           20</span><br><span class="line">#@faculty        soft    nproc           20</span><br><span class="line">#@faculty        hard    nproc           50</span><br><span class="line">#ftp             hard    nproc           0</span><br><span class="line">#@student        -       maxlogins       4</span><br><span class="line"></span><br><span class="line"># End of file</span><br><span class="line"></span><br><span class="line">root soft nofile 65535   # 新增</span><br><span class="line">root hard nofile 65535</span><br></pre></td></tr></table></figure>
+
+<p>各列意义:</p>
+<p>1: 用户名称，对所有用户则“*”</p>
+<p>2：soft 软限制/hard 硬件限制</p>
+<p>3： 代表最大文件打开数</p>
+<p>4： 数量</p>
+<h5 id="查看所有进程文件打开数"><a href="#查看所有进程文件打开数" class="headerlink" title="查看所有进程文件打开数"></a>查看所有进程文件打开数</h5><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof | wc -l</span><br></pre></td></tr></table></figure>
+
+<h5 id="查看某个进程打开文件数"><a href="#查看某个进程打开文件数" class="headerlink" title="查看某个进程打开文件数"></a>查看某个进程打开文件数</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof  -p [pid] | wc -l</span><br></pre></td></tr></table></figure>
+
+<h5 id="查看系统中各个进程分别打开了多少句柄数"><a href="#查看系统中各个进程分别打开了多少句柄数" class="headerlink" title="查看系统中各个进程分别打开了多少句柄数"></a>查看系统中各个进程分别打开了多少句柄数</h5><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof -n|awk '&#123;print $2&#125;'|sort|uniq -c|sort -nr|more</span><br></pre></td></tr></table></figure>
+
+<h4 id="SSH-密钥登录"><a href="#SSH-密钥登录" class="headerlink" title="SSH 密钥登录"></a>SSH 密钥登录</h4><ol>
+<li>生成公钥私钥对，linux下使用 ssh-keygen  命令生成，一路enter</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# ssh-keygen </span><br><span class="line">Generating public/private rsa key pair.</span><br><span class="line">Enter file in which to save the key (/root/.ssh/id_rsa):    # 存放路径</span><br><span class="line">Enter passphrase (empty for no passphrase):                 # 密码</span><br><span class="line">Enter same passphrase again: </span><br><span class="line">Your identification has been saved in /root/.ssh/id_rsa.</span><br><span class="line">Your public key has been saved in /root/.ssh/id_rsa.pub.</span><br><span class="line">The key fingerprint is:</span><br><span class="line">SHA256:N9Q7EJosUhKrKw+Utf5jcSgpg7fzJS5EtVfa5iinWOk root@localhost.localdomain</span><br><span class="line">The key's randomart image is:</span><br><span class="line">+---[RSA 2048]----+</span><br><span class="line">|    o..   .      |</span><br><span class="line">|    .+ ..o o     |</span><br><span class="line">|   oo..++ o .    |</span><br><span class="line">|  +.o.o.o. . .   |</span><br><span class="line">|.+...o.+S o o    |</span><br><span class="line">|oo+++oo... . .   |</span><br><span class="line">|oo+*o++          |</span><br><span class="line">| +=.E=           |</span><br><span class="line">|  .++..          |</span><br><span class="line">+----[SHA256]-----+</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>生成密钥对后，将公钥上传到服务器要登陆的用户 ~/.ssh/authorized_keys</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# cat ~/.ssh/id_rsa.pub </span><br><span class="line">ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCyUOANXFleDWrpJop7zrM2eZxrna8+uIiSbz72IRsAO3intbNkyHJpULv9yYUmT4iPf4Vn4QYmyogFhdpTktKSADBbyH5VXIGyFjbWeO7ix1iVr7YVQQ/4P/nELVytCUiIojFdZ+DvyYSariLzLuliFpYTMJ4jpmgpL/pAUobEazpGwjlRUOWik3+8kLGpsxHYJNUmrZKSnNaOYqDJVGfO3KBfozO+I5B/wcwSW5hje7Y5xyfdDzvuVh7uVmKQbjw3WoMiy64pTcKB1S3tQtPZfXnmOd3tUZU8SXSfcvhHdgrbG6kFBrJwqjpj/sE4zL9nWbSZlbpJD7gXtlkdrAH1 root@localhost.localdomain</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>登录服务器 ~/.ssh/authorized_keys</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@wpspic6 opt]# cat ~/.ssh/authorized_keys</span><br><span class="line">sh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCyUOANXFleDWrpJop7zrM2eZxrna8+uIiSbz72IRsAO3intbNkyHJpULv9yYUmT4iPf4Vn4QYmyogFhdpTktKSADBbyH5VXIGyFjbWeO7ix1iVr7YVQQ/4P/nELVytCUiIojFdZ+DvyYSariLzLuliFpYTMJ4jpmgpL/pAUobEazpGwjlRUOWik3+8kLGpsxHYJNUmrZKSnNaOYqDJVGfO3KBfozO+I5B/wcwSW5hje7Y5xyfdDzvuVh7uVmKQbjw3WoMiy64pTcKB1S3tQtPZfXnmOd3tUZU8SXSfcvhHdgrbG6kFBrJwqjpj/sE4zL9nWbSZlbpJD7gXtlkdrAH1 root@localhost.localdomain</span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li><p>测试登录，这里我用的是root</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ssh root@10.226.50.30 </span><br><span class="line">Last login: Tue Sep 17 16:23:57 2019 from 10.226.28.68     # 登录成功</span><br></pre></td></tr></table></figure>
+
+<p>增加-v选项，输出登录过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ssh root@10.226.50.30 -v</span><br><span class="line">OpenSSH_7.4p1, OpenSSL 1.0.2k-fips  26 Jan 2017</span><br><span class="line">debug1: Reading configuration data /etc/ssh/ssh_config</span><br><span class="line">debug1: /etc/ssh/ssh_config line 58: Applying options for *</span><br><span class="line">debug1: Connecting to 10.226.50.30 [10.226.50.30] port 22.</span><br><span class="line">debug1: Connection established.</span><br><span class="line">debug1: permanently_set_uid: 0/0</span><br><span class="line">debug1: identity file /root/.ssh/id_rsa type 1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_rsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_dsa type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_dsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ecdsa type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ecdsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ed25519 type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ed25519-cert type -1</span><br><span class="line">debug1: Enabling compatibility mode for protocol 2.0</span><br><span class="line">debug1: Local version string SSH-2.0-OpenSSH_7.4</span><br><span class="line">debug1: Remote protocol version 2.0, remote software version OpenSSH_7.4</span><br><span class="line">debug1: match: OpenSSH_7.4 pat OpenSSH* compat 0x04000000</span><br><span class="line">debug1: Authenticating to 10.226.50.30:22 as &apos;root&apos;</span><br><span class="line">debug1: SSH2_MSG_KEXINIT sent</span><br><span class="line">debug1: SSH2_MSG_KEXINIT received</span><br><span class="line">debug1: kex: algorithm: curve25519-sha256</span><br><span class="line">debug1: kex: host key algorithm: rsa-sha2-512</span><br><span class="line">debug1: kex: server-&gt;client cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit&gt; compression: none</span><br><span class="line">debug1: kex: client-&gt;server cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit&gt; compression: none</span><br><span class="line">debug1: kex: curve25519-sha256 need=64 dh_need=64</span><br><span class="line">debug1: kex: curve25519-sha256 need=64 dh_need=64</span><br><span class="line">debug1: expecting SSH2_MSG_KEX_ECDH_REPLY</span><br><span class="line">debug1: Server host key: ssh-rsa SHA256:yKoRmi5QgIlXrrhYQcP5W0Mx2PhSoTsm5Z+DhdeYFpU</span><br><span class="line">debug1: Host &apos;10.226.50.30&apos; is known and matches the RSA host key.</span><br><span class="line">debug1: Found key in /root/.ssh/known_hosts:1</span><br><span class="line">debug1: rekey after 134217728 blocks</span><br><span class="line">debug1: SSH2_MSG_NEWKEYS sent</span><br><span class="line">debug1: expecting SSH2_MSG_NEWKEYS</span><br><span class="line">debug1: SSH2_MSG_NEWKEYS received</span><br><span class="line">debug1: rekey after 134217728 blocks</span><br><span class="line">debug1: SSH2_MSG_EXT_INFO received</span><br><span class="line">debug1: kex_input_ext_info: server-sig-algs=&lt;rsa-sha2-256,rsa-sha2-512&gt;</span><br><span class="line">debug1: SSH2_MSG_SERVICE_ACCEPT received</span><br><span class="line">debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic,password</span><br><span class="line">debug1: Next authentication method: gssapi-keyex</span><br><span class="line">debug1: No valid Key exchange context</span><br><span class="line">debug1: Next authentication method: gssapi-with-mic</span><br><span class="line">debug1: Unspecified GSS failure.  Minor code may provide more information</span><br><span class="line">No Kerberos credentials available (default cache: KEYRING:persistent:0)</span><br><span class="line"></span><br><span class="line">debug1: Unspecified GSS failure.  Minor code may provide more information</span><br><span class="line">No Kerberos credentials available (default cache: KEYRING:persistent:0)</span><br><span class="line"></span><br><span class="line">debug1: Next authentication method: publickey</span><br><span class="line">debug1: Offering RSA public key: /root/.ssh/id_rsa</span><br><span class="line">debug1: Server accepts key: pkalg rsa-sha2-512 blen 279</span><br><span class="line">debug1: Authentication succeeded (publickey).</span><br><span class="line">Authenticated to 10.226.50.30 ([10.226.50.30]:22).</span><br><span class="line">debug1: channel 0: new [client-session]</span><br><span class="line">debug1: Requesting no-more-sessions@openssh.com</span><br><span class="line">debug1: Entering interactive session.</span><br><span class="line">debug1: pledge: network</span><br><span class="line">debug1: client_input_global_request: rtype hostkeys-00@openssh.com want_reply 0</span><br><span class="line">debug1: Sending environment.</span><br><span class="line">debug1: Sending env LANG = en_US.UTF-8</span><br><span class="line">Last login: Wed Sep 18 12:00:12 2019 from 10.226.50.31</span><br><span class="line">[root@wpspic6 ~]#</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<blockquote>
+<ol>
+<li>登录可能失败，可以在ssh命令后增加-v选项查看登录过程；</li>
+<li>如果私钥是从其他地方拷贝，最好将id_rsa.pub也拷贝或者原来的删除，否则会影响登录；</li>
+</ol>
+</blockquote>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

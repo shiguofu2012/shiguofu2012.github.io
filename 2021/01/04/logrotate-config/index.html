@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>日志切割工具 logrotate 配置 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="1. 安装Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装apt/yum 安装123456[root@VM-145-82-centos ~]# yum install logrotateLoaded plugins: fastestmirrorLoading mirror speeds from cached hostfilePackage logrotate-3.8.6-14.tl2.x86_64 already installed and latest...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-安装"><span class="toc-number">1.</span> <span class="toc-text">1. 安装</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#apt-yum-安装"><span class="toc-number">1.1.</span> <span class="toc-text">apt/yum 安装</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#源码安装"><span class="toc-number">1.2.</span> <span class="toc-text">源码安装</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-配置"><span class="toc-number">2.</span> <span class="toc-text">2. 配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-执行频度定制"><span class="toc-number">3.</span> <span class="toc-text">3. 执行频度定制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-手动执行"><span class="toc-number">3.1.</span> <span class="toc-text">4. 手动执行</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">3.2.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            日志切割工具 logrotate 配置
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/01/04/logrotate-config/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-04T13:30:00.000Z" itemprop="datePublished">2021-01-04</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="1-安装"><a href="#1-安装" class="headerlink" title="1. 安装"></a>1. 安装</h3><p>Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装</p>
+<h4 id="apt-yum-安装"><a href="#apt-yum-安装" class="headerlink" title="apt/yum 安装"></a>apt/yum 安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# yum install logrotate</span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line">Package logrotate-3.8.6-14.tl2.x86_64 already installed and latest version</span><br><span class="line">Nothing to do</span><br><span class="line">[root@VM-145-82-centos ~]#</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@VM-0-15-ubuntu:[10:59:47]:~# apt-get install logrotate</span><br><span class="line">Reading package lists... Done</span><br><span class="line">Building dependency tree</span><br><span class="line">Reading state information... Done</span><br><span class="line">logrotate is already the newest version (3.8.7-2ubuntu2.16.04.2).</span><br><span class="line">0 upgraded, 0 newly installed, 0 to remove and 385 not upgraded.</span><br></pre></td></tr></table></figure>
+
+<h4 id="源码安装"><a href="#源码安装" class="headerlink" title="源码安装"></a>源码安装</h4><p>github地址: <a href="https://github.com/logrotate/logrotate" target="_blank" rel="noopener">https://github.com/logrotate/logrotate</a> </p>
+<p>按照github安装</p>
+<h3 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h3><p>logrotate是利用系统crontab定时执行的，在目录/etc/cron.daily中有个logrotate的脚本。如果需要，可以在cron.hourly，也可以在/etc/crontab中增加自己的配置。</p>
+<p>这些配置都是独立的，结合自己的配置以及服务的日志量来自定义达到最优配置。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/sh</span><br><span class="line"></span><br><span class="line">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf</span><br><span class="line">EXITVALUE=$?</span><br><span class="line">if [ $EXITVALUE != 0 ]; then</span><br><span class="line">    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"</span><br><span class="line">fi</span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
+
+<p>配置文件主要存放在目录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# ls /etc/logrotate.d/</span><br><span class="line">conman  cron.30m  iptraf-ng  mgetty  mongodb  mysql  psacct  syslog  yum</span><br></pre></td></tr></table></figure>
+
+<p>一般安装会添加常用组件的配置，在生产环境中，我们会自定义一些配置。</p>
+<p>如下是本人常用的配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/data/log/*.log</span><br><span class="line">&#123;</span><br><span class="line">    daily</span><br><span class="line">    notifempty    </span><br><span class="line">    copytruncate</span><br><span class="line">    compress</span><br><span class="line">    rotate 60</span><br><span class="line">    missingok</span><br><span class="line">    dateext</span><br><span class="line">    dateformat -%s</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th><strong>配置参数</strong></th>
+<th><strong>说明</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>monthly</strong></td>
+<td>日志文件将按月轮循。其它可用值为’daily’，’weekly’或者’yearly’。</td>
+</tr>
+<tr>
+<td><strong>rotate 5</strong></td>
+<td>一次将存储5个归档日志。对于第六个归档，时间最久的归档将被删除。</td>
+</tr>
+<tr>
+<td><strong>compress</strong></td>
+<td>在轮循任务完成后，已轮循的归档将使用gzip进行压缩。</td>
+</tr>
+<tr>
+<td><strong>delaycompress</strong></td>
+<td>总是与compress选项一起用，delaycompress选项指示logrotate不要将最近的归档压缩，压缩将在下一次轮循周期进行。这在你或任何软件仍然需要读取最新归档时很有用。</td>
+</tr>
+<tr>
+<td><strong>missingok</strong></td>
+<td>在日志轮循期间，任何错误将被忽略，例如“文件无法找到”之类的错误。</td>
+</tr>
+<tr>
+<td><strong>notifempty</strong></td>
+<td>如果日志文件为空，轮循不会进行。</td>
+</tr>
+<tr>
+<td><strong>create 644 root root</strong></td>
+<td>以指定的权限创建全新的日志文件，同时logrotate也会重命名原始日志文件。</td>
+</tr>
+<tr>
+<td><strong>size</strong></td>
+<td>日志文件大小的配置，如果没达到这个大小，将不会压缩</td>
+</tr>
+<tr>
+<td><strong>dateext</strong></td>
+<td>压缩文件带上日期，默认会使用编号(log.log.1.gz)，该选项会是每次压缩都带上日期，如 log.log-2020</td>
+</tr>
+<tr>
+<td><strong>dateformat</strong></td>
+<td>日期格式  支持 %Y%m%d(年月日) %s(时间戳)</td>
+</tr>
+<tr>
+<td><strong>postrotate/endscript</strong></td>
+<td>在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行。在这种情况下，rsyslogd 进程将立即再次读取其配置并继续运行。</td>
+</tr>
+</tbody></table>
+<h3 id="3-执行频度定制"><a href="#3-执行频度定制" class="headerlink" title="3. 执行频度定制"></a>3. 执行频度定制</h3><p>logrotate是在cron中执行的，因此要自定义执行频度，可以增加crontab配置</p>
+<p>比如，我们的服务需要每半小时压缩一次 hourly是不满足我们的需求，就需要在crontab中增加一条记录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# crontab -e</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> rotate nginx log every 30min</span><br><span class="line">*/30 * * * * /usr/sbin/logrotate  /etc/logrotate.d/cron.30m/*  -f</span><br></pre></td></tr></table></figure>
+
+<p>可以将30min执行的所有配置文件放到一个目录，执行30min命令。</p>
+<h4 id="4-手动执行"><a href="#4-手动执行" class="headerlink" title="4. 手动执行"></a>4. 手动执行</h4><p>配置文件是否配置成功，执行后是什么效果。logrotate提供测试的功能。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# logrotate -d /etc/logrotate.d/cron.30m/*</span><br><span class="line">reading config file /etc/logrotate.d/cron.30m/nginx</span><br><span class="line">Allocating hash table for state file, size 15360 B</span><br><span class="line"></span><br><span class="line">Handling 1 logs</span><br><span class="line"></span><br><span class="line">rotating pattern: /var/log/nginx/*log  after 1 days (10 rotations)</span><br><span class="line">empty log files are not rotated, old logs are removed</span><br><span class="line">considering log /var/log/nginx/access.log</span><br><span class="line">  log does not need rotating (log is empty)considering log /var/log/nginx/error.log</span><br><span class="line">  log does not need rotating (log is empty)not running postrotate script, since no logs were rotated</span><br></pre></td></tr></table></figure>
+
+<p>执行后，会输出文件怎么变更，压缩重命名等。比如上面会提示 “old logs are removed” “10 rotate” 等记录。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>logrotate工具对于防止因庞大的日志文件而耗尽存储空间是十分有用的。配置完毕后，进程是全自动的，可以长时间在不需要人为干预下运行。可以根据需求及日志量定制自己的日志切割规则。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

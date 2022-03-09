@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>体验CENTOS 8 并安装Docker | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="体验CENTOS 8 并安装Docker安装CentOS 8背景： 五一假期闲来无事，把自己的一台老本安装了centos8最新的系统玩玩。去官网下载了最新的centos系统，太慢了，就到阿里云镜像中心下载，真是快，附上地址1https://mirrors.aliyun.com/centos/8.1.1911/isos/x86_64/有包含所有软件的版本，有网络安装的版本，dvd版本的太大 7G，就选择了boot版本的，网络安装吧坑一堆以前安装系统都是通过GRUB引导安装，...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#体验CENTOS-8-并安装Docker"><span class="toc-number">1.</span> <span class="toc-text">体验CENTOS 8 并安装Docker</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#安装CentOS-8"><span class="toc-number">1.1.</span> <span class="toc-text">安装CentOS 8</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#安装docker"><span class="toc-number">1.2.</span> <span class="toc-text">安装docker</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#普通用户运行docker"><span class="toc-number">1.3.</span> <span class="toc-text">普通用户运行docker</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            体验CENTOS 8 并安装Docker
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2020/05/03/install-centos8-docker/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2020-05-03T03:08:51.000Z" itemprop="datePublished">2020-05-03</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/linux/">linux</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="体验CENTOS-8-并安装Docker"><a href="#体验CENTOS-8-并安装Docker" class="headerlink" title="体验CENTOS 8 并安装Docker"></a>体验CENTOS 8 并安装Docker</h3><h4 id="安装CentOS-8"><a href="#安装CentOS-8" class="headerlink" title="安装CentOS 8"></a>安装CentOS 8</h4><p>背景： 五一假期闲来无事，把自己的一台老本安装了centos8最新的系统玩玩。</p>
+<ol>
+<li>去官网下载了最新的centos系统，太慢了，就到阿里云镜像中心下载，真是快，附上地址</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https://mirrors.aliyun.com/centos/8.1.1911/isos/x86_64/</span><br></pre></td></tr></table></figure>
+
+<p>有包含所有软件的版本，有网络安装的版本，dvd版本的太大 7G，就选择了boot版本的，网络安装吧</p>
+<ol start="2">
+<li><p>坑一堆</p>
+<p>以前安装系统都是通过GRUB引导安装，现在命令统统忘记，折腾半天，总是启动失败 :(</p>
+<p>有知道的可以告诉我，感谢！</p>
+<p>太折腾了，就选择了一种简单的方式，UtrolISO烧录到U盘，直接安装，然而我太幼稚了，还是报错</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">no floppy found please insert floppy and go on....</span><br></pre></td></tr></table></figure>
+
+<p>就是说没有软盘，我纳闷了，怎么会出现软盘错误。。。</p>
+<p>后来去看了isolinux的启动参数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">label linux</span><br><span class="line">  menu label ^Install CentOS Linux 8</span><br><span class="line">  kernel vmlinuz</span><br><span class="line">  append initrd=initrd.img inst.stage2=hd:LABEL=CentOS-8-1-1911-x86_64-dvd quiet</span><br></pre></td></tr></table></figure>
+
+<p>发现有个LABEL的选项，但是前面有个HD的选项，怎么会去找软盘，纳闷了，可能是遗留的问题，默认都是软盘，就把这个选项改下， 改成自己的U盘。我的u盘是hdb4；这里如果不知道可以让启动失败，等待几分钟后就会出现命令行模式，可以输入命令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ls /dev/hd* # 查看当前挂在的磁盘</span><br></pre></td></tr></table></figure>
+
+<p>于是就把配置文件修改为，顺利启动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">label linux</span><br><span class="line">  menu label ^Install CentOS Linux 8</span><br><span class="line">  kernel vmlinuz</span><br><span class="line">  append initrd=initrd.img inst.stage2=hd:/dev/hdb4 quiet</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>由于我选的是网络安装版本的，后面会出现填写repo文件的网络地址，默认是会有个CLOSEST mirror，可以自己安装成功；如果网络失败，可以填写阿里云的repo文件</p>
+<p><a href="https://mirrors.aliyun.com/centos/8/BaseOS/x86_64/os/" target="_blank" rel="noopener">https://mirrors.aliyun.com/centos/8/BaseOS/x86_64/os/</a></p>
+</blockquote>
+</li>
+</ol>
+<p>终于安装成功</p>
+<h4 id="安装docker"><a href="#安装docker" class="headerlink" title="安装docker"></a>安装docker</h4><p>刚开始不知道阿里云也是有docker的镜像的，就从官网粘贴的配置docker镜像源</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install -y yum-utils \</span><br><span class="line">  device-mapper-persistent-data \</span><br><span class="line">  lvm2</span><br><span class="line">sudo yum-config-manager \</span><br><span class="line">    --add-repo \</span><br><span class="line">    https://download.docker.com/linux/centos/docker-ce.repo</span><br><span class="line">    </span><br><span class="line">sudo yum install docker-ce docker-ce-cli containerd.io</span><br></pre></td></tr></table></figure>
+
+<p>意外的是，竟然报错了</p>
+<p><img src="/2020/05/03/install-centos8-docker/20200226175155741.png" alt="img"></p>
+<p>就是说containerd.io需要1.2.2-3以上的版本</p>
+<p>难道镜像源中不满足，又纳闷，还是去官网下载了1.2.2-3版本，地址：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.13-3.1.el7.x86_64.rpm</span><br></pre></td></tr></table></figure>
+
+<p>当然，可能很慢，就找了阿里云的，自己选择版本</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https://mirrors.aliyun.com/docker-ce/linux/centos/7/x86_64/stable/Packages/</span><br></pre></td></tr></table></figure>
+
+<p>继续，下载了rpm包以后，就直接安装</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rpm -ivh containerd.io-1.2.13-3.1.el7.x86_64.rpm</span><br></pre></td></tr></table></figure>
+
+<p>问题还是有的。centos8自带了一个runc也是用来跑容器的，跟docker是类似的，然而我想用docker，就直接卸载吧。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum remove runc</span><br></pre></td></tr></table></figure>
+
+<p>再安装就ok了</p>
+<p>同时，把yum的repo也改下，改成阿里云的，速度不是一般的快</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install docker-ce</span><br></pre></td></tr></table></figure>
+
+<p>终于安装成功，启动docker daemon</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service docker start</span><br></pre></td></tr></table></figure>
+
+<h4 id="普通用户运行docker"><a href="#普通用户运行docker" class="headerlink" title="普通用户运行docker"></a>普通用户运行docker</h4><p>docker启动后，默认只有root才可以使用，其他都会提示 “no permission…”</p>
+<p>看docker的通信sock，明显是属于root的</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ll /var/run/docker.sock</span><br><span class="line">srw-rw----. 1 root root 0 May 25 14:43 /var/run/docker.sock</span><br></pre></td></tr></table></figure>
+
+<p>添加docker用户组，把需要使用docker的用户添加到docker组 </p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">groupadd docker</span><br><span class="line">gpasswd -a gfshi docker</span><br></pre></td></tr></table></figure>
+
+<p>重启docker服务</p>
+<p>普通用户也可以使用了～</p>
+<p>可以玩docker了 </p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

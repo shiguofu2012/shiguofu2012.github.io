@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>redis 高可用系统 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="Redis的高可用方案有三种：master/slave主从方案主节点提供读写操作，从节点提供读操作；主节点故障，需要手动主备切换；读写主还是从，由客户端控制；哨兵(sentinel)模式来进行主从替换以及故障恢复在主从模式的基础上增加sentinel监听，主节点不可用，自动将slave提升为master;客户端通过sentinel获取主/从节点；redis cluster集群方案去中心化，平等结构，数据槽；这里主要介绍下，简单的主从模式与sentinel结构；...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#Redis的高可用方案有三种："><span class="toc-number">1.</span> <span class="toc-text">Redis的高可用方案有三种：</span></a></li></ol><li class="toc-item toc-level-3"><a class="toc-link" href="#redis-master-slave-（replication）"><span class="toc-number"></span> <span class="toc-text">redis master/slave （replication）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#主要工作机制"><span class="toc-number">1.</span> <span class="toc-text">主要工作机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#redis-replication-工作原理"><span class="toc-number">2.</span> <span class="toc-text">redis replication 工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#全量复制的过程"><span class="toc-number">2.1.</span> <span class="toc-text">全量复制的过程</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#无盘化复制"><span class="toc-number">2.2.</span> <span class="toc-text">无盘化复制</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#至少N个slave才能写成功"><span class="toc-number">2.3.</span> <span class="toc-text">至少N个slave才能写成功</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#过期key处理"><span class="toc-number">2.4.</span> <span class="toc-text">过期key处理</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#heartbeat"><span class="toc-number">2.5.</span> <span class="toc-text">heartbeat</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#redis-replication-配置"><span class="toc-number">3.</span> <span class="toc-text">redis replication 配置</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#redis-sentinel"><span class="toc-number"></span> <span class="toc-text">redis sentinel</span></a>
+        
+    </li></div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            redis 高可用系统
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2019/09/18/redis-HA/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2019-09-18T06:39:09.000Z" itemprop="datePublished">2019-09-18</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/redis/">redis</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="Redis的高可用方案有三种："><a href="#Redis的高可用方案有三种：" class="headerlink" title="Redis的高可用方案有三种："></a>Redis的高可用方案有三种：</h4><ul>
+<li>master/slave主从方案</li>
+</ul>
+<p>主节点提供读写操作，从节点提供读操作；</p>
+<p>主节点故障，需要手动主备切换；</p>
+<p>读写主还是从，由客户端控制；</p>
+<ul>
+<li>哨兵(sentinel)模式来进行主从替换以及故障恢复</li>
+</ul>
+<p>在主从模式的基础上增加sentinel监听，主节点不可用，自动将slave提升为master;</p>
+<p>客户端通过sentinel获取主/从节点；</p>
+<ul>
+<li>redis cluster集群方案</li>
+</ul>
+<p>去中心化，平等结构，数据槽；</p>
+<p>这里主要介绍下，简单的主从模式与sentinel结构；</p>
+<h3 id="redis-master-slave-（replication）"><a href="#redis-master-slave-（replication）" class="headerlink" title="redis master/slave （replication）"></a>redis master/slave （replication）</h3><p>master/slave 是为了解决点单故障而出现的，slave是对master的镜像；</p>
+<h4 id="主要工作机制"><a href="#主要工作机制" class="headerlink" title="主要工作机制"></a>主要工作机制</h4><ul>
+<li>master-slave使用异步方式复制数据，同样使用异步的确认slave-to-master</li>
+<li>一个master可以拥有多个slave</li>
+<li>slave也可以连接slave （4.0以后，所有的sub-slaves从maser接受复制数据）</li>
+<li>master在做复制操作的时候，不会block master的读写操作</li>
+<li>slave在复制操作过程中，根据配置使用旧的数据提供服务或者返回错误(配置replica-serve-stale-data)；完成复制后，旧的数据会被删除，新的会被加载，期间会拒绝连接( block incoming connections)</li>
+<li>slave可做横向扩容或者数据的安全性与高可用</li>
+<li>master可关闭持久化，直接内存读写，slave开启持久化，保存数据；<strong>注意master重启，slave也会同步空的数据</strong></li>
+</ul>
+<h4 id="redis-replication-工作原理"><a href="#redis-replication-工作原理" class="headerlink" title="redis replication 工作原理"></a>redis replication 工作原理</h4><ul>
+<li>两个参数确定了同步的信息</li>
+</ul>
+<p>replication ID: 伪随机数，与当前数据集生成，每个master具有</p>
+<p>offset：master/slave 之间同步的位置记录</p>
+<p>当slave连接到master后，使用<strong>PSYNC</strong>命令发送当前master 的replication ID与offset</p>
+<ul>
+<li>正常情况，master发送增量数据给slave，offset开始</li>
+<li>slave发送无效的replication ID/master没有足够的backlog，会开始全量复制(full resynchronization)</li>
+</ul>
+<h5 id="全量复制的过程"><a href="#全量复制的过程" class="headerlink" title="全量复制的过程"></a>全量复制的过程</h5><ol>
+<li>master接受到全量复制的请求，启动<strong>bgsave</strong>进程生成rdb file；同时，会开启一个<strong>buffer</strong>缓存所有新的写命令</li>
+</ol>
+<blockquote>
+<p>关于buffer的配置：</p>
+<p>client-output-buffer-limit replica 256MB 64MB 60</p>
+<p>如果在复制期间，内存缓冲区超过60秒一直消耗超过 64MB，或者一次性超过 256MB，那么停止复制，复制失败。后两个参数是配合使用的，假如：消耗超过64MB 一直持续了59秒，但是60秒的时候不超过64MB了，那么就保持连接继续复制。</p>
+</blockquote>
+<ol start="2">
+<li><p>bgsave完成后，master会将rdb file 给slave；slave会将其<strong>存到磁盘并加载到内存</strong></p>
+</li>
+<li><p>master 发送缓存的命令给slave</p>
+</li>
+</ol>
+<p>下面为master的日志记录，同步的过程</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">3829:M 10 Oct 2019 14:47:08.193 * Replica 10.226.50.31:6379 asks for synchronization</span><br><span class="line">3829:M 10 Oct 2019 14:47:08.193 * Full resync requested by replica 10.226.50.31:6379</span><br><span class="line">3829:M 10 Oct 2019 14:47:08.193 * Starting BGSAVE for SYNC with target: disk</span><br><span class="line">3829:M 10 Oct 2019 14:47:08.194 * Background saving started by pid 4102</span><br><span class="line">4102:C 10 Oct 2019 14:47:09.637 * DB saved on disk</span><br><span class="line">4102:C 10 Oct 2019 14:47:09.637 * RDB: 6 MB of memory used by copy-on-write</span><br><span class="line">3829:M 10 Oct 2019 14:47:09.685 * Background saving terminated with success</span><br><span class="line">3829:M 10 Oct 2019 14:47:09.731 * Synchronization with replica 10.226.50.31:6379 succeeded</span><br></pre></td></tr></table></figure>
+
+<h5 id="无盘化复制"><a href="#无盘化复制" class="headerlink" title="无盘化复制"></a>无盘化复制</h5><p>正常情况下，全量复制需要在磁盘上创建rdb文件，并从磁盘上读取该文件发送给slave</p>
+<p>磁盘效率低下，会严重影响master的效率，可配置不经过磁盘，直接发送</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">repl-diskless-sync yes</span><br><span class="line"></span><br><span class="line"># 等待 5s 后再开始复制，因为要等更多 replica 重新连接过来</span><br><span class="line">repl-diskless-sync-delay 5</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意：</p>
+<ol>
+<li>不建议使用slave作为master的热备，关掉master的持久化；master宕机后会立马同步到slave导致数据丢失</li>
+<li>master的备份方案需要做，防止本地文件丢失；sentinel可以监控并切换，但有可能master failure还未检测到就已经重启，也会导致情况1</li>
+</ol>
+</blockquote>
+<h5 id="至少N个slave才能写成功"><a href="#至少N个slave才能写成功" class="headerlink" title="至少N个slave才能写成功"></a>至少N个slave才能写成功</h5><p>Redis 2.8开始，可以配置至少有N个slave连接的情况下，master才能接受写请求</p>
+<p>由于redis使用异步复制，不能保证slave真正接受到了某个写请求，于是有可能有一个丢失窗口</p>
+<p>工作特点：</p>
+<ul>
+<li>slave每秒钟ping master，确认复制的数据的数量</li>
+<li>master记录每个slave最后一次ping的时间</li>
+<li>用户可配置不大于最大秒数的延迟的最小的slave数量</li>
+</ul>
+<p>如果有N个slave，延迟小于M秒，则写入成功；否则返回错误，写入失败</p>
+<p>redis配置参数：</p>
+<ul>
+<li>min-slaves-to-write <code>&lt;number of slaves&gt;</code></li>
+<li>min-slaves-max-lag <code>&lt;number of seconds&gt;</code></li>
+</ul>
+<h5 id="过期key处理"><a href="#过期key处理" class="headerlink" title="过期key处理"></a>过期key处理</h5><ul>
+<li>replica不会过期key，只会等待master过期key。如果master过期了一个key，或者通过LRU淘汰了一个key，那么会模拟一条del命令发送给replica</li>
+<li>master过期数据，因此在slave内存中可能存在逻辑上已经过期的数据还未及时被删除，slave中使用(its logical clock)<strong>only for read operations</strong>确定key不存在，不违反一致性</li>
+<li>Lua脚本执行期间不会执行过期策略；发送同样的Lua脚本到slave保证一致性</li>
+</ul>
+<h5 id="heartbeat"><a href="#heartbeat" class="headerlink" title="heartbeat"></a>heartbeat</h5><p>主从节点互相都会发送 heartbeat 信息。</p>
+<p>master 默认每隔 10秒 发送一次 heartbeat，replica node 每隔 1秒 发送一个 heartbeat。</p>
+<h4 id="redis-replication-配置"><a href="#redis-replication-配置" class="headerlink" title="redis replication 配置"></a>redis replication 配置</h4><p>配置是比较简单的，了解基本原理主要是为了在出现问题时，能够快速定位问题</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">replicaof 10.226.50.31 6381</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># master 配置认证密码</span><br><span class="line"># requirepass foobared</span><br><span class="line"># slave 认证</span><br><span class="line"># masterauth foobared</span><br></pre></td></tr></table></figure>
+
+<p>replicaof [ip] [port]</p>
+<p>在5.0.4之前使用的时slaveof; </p>
+<p>修改配置的bind/port/logfile/dbfilename/dir等配置参数，启动redis</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">redis-server /etc/redis-6379.conf</span><br><span class="line">redis-server /etc/redis-6381.conf</span><br></pre></td></tr></table></figure>
+
+<p>启动后查看redis的replication 6379, 角色为slave；写入数据报错</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# redis-cli </span><br><span class="line">127.0.0.1:6379&gt; info replication</span><br><span class="line"><span class="meta">#</span> Replication</span><br><span class="line">role:slave</span><br><span class="line">master_host:10.226.50.31</span><br><span class="line">master_port:6381</span><br><span class="line">master_link_status:up</span><br><span class="line">master_last_io_seconds_ago:10</span><br><span class="line">master_sync_in_progress:0</span><br><span class="line">slave_repl_offset:128880</span><br><span class="line">slave_priority:100</span><br><span class="line">slave_read_only:1</span><br><span class="line">connected_slaves:0</span><br><span class="line">master_replid:a868c97d4f90ce5e77d6d6bd1787e8f61df35eff</span><br><span class="line">master_replid2:0000000000000000000000000000000000000000</span><br><span class="line">master_repl_offset:128880</span><br><span class="line">second_repl_offset:-1</span><br><span class="line">repl_backlog_active:1</span><br><span class="line">repl_backlog_size:1048576</span><br><span class="line">repl_backlog_first_byte_offset:1</span><br><span class="line">repl_backlog_histlen:128880</span><br><span class="line">127.0.0.1:6379&gt; set a b</span><br><span class="line">(error) READONLY You can't write against a read only replica.</span><br></pre></td></tr></table></figure>
+
+<p>master的角色为master，存在master replid，slave 同步的位置offset；写入数据成功，查看slave，数据已经同步</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# redis-cli -p 6381</span><br><span class="line">127.0.0.1:6381&gt; info replication</span><br><span class="line"><span class="meta">#</span> Replication</span><br><span class="line">role:master</span><br><span class="line">connected_slaves:1</span><br><span class="line">slave0:ip=10.226.50.31,port=6379,state=online,offset=128978,lag=0</span><br><span class="line">master_replid:a868c97d4f90ce5e77d6d6bd1787e8f61df35eff</span><br><span class="line">master_replid2:0000000000000000000000000000000000000000</span><br><span class="line">master_repl_offset:128978</span><br><span class="line">second_repl_offset:-1</span><br><span class="line">repl_backlog_active:1</span><br><span class="line">repl_backlog_size:1048576</span><br><span class="line">repl_backlog_first_byte_offset:1</span><br><span class="line">repl_backlog_histlen:128978</span><br><span class="line">127.0.0.1:6381&gt; set a b</span><br><span class="line">OK</span><br></pre></td></tr></table></figure>
+
+<h3 id="redis-sentinel"><a href="#redis-sentinel" class="headerlink" title="redis sentinel"></a>redis sentinel</h3><p>Sentinel(哨兵)是用于监控redis集群中Master状态的工具，sentinel哨兵模式已经被集成在redis2.4之后的版本中。</p>
+<p>sentinel进程可以监视一个或者多个redis master/slave服务；当某个master服务下线时，自动将该master下的某个从服务升级为master服务替代已下线的master服务继续处理请求。</p>
+<p>写博客太需要时间，未完，待续。。。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

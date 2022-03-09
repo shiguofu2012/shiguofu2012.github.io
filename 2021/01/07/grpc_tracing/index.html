@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>gRPC tracing | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="介绍gRPCgRPC是什么可以用官网的一句话来概括A high-performance, open-source universal RPC framework所谓RPC(remote procedure call 远程过程调用)框架实际是提供了一套机制，使得应用程序之间可以进行通信，而且也遵从server/client模型。使用的时候客户端调用server端提供的接口就像是调用本地的函数一样。如下图所示就是一个典型的RPC结构图。gRPC vs. Restful API既然是...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#gRPC"><span class="toc-number">1.1.</span> <span class="toc-text">gRPC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#gRPC-vs-Restful-API"><span class="toc-number">1.2.</span> <span class="toc-text">gRPC vs. Restful API</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Tracing"><span class="toc-number">1.3.</span> <span class="toc-text">Tracing</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            gRPC tracing
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/01/07/grpc_tracing/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-07T05:19:59.000Z" itemprop="datePublished">2021-01-07</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>, <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><h3 id="gRPC"><a href="#gRPC" class="headerlink" title="gRPC"></a>gRPC</h3><p>gRPC是什么可以用官网的一句话来概括</p>
+<blockquote>
+<p>A high-performance, open-source universal RPC framework</p>
+</blockquote>
+<p><strong>所谓RPC(remote procedure call 远程过程调用)框架实际是提供了一套机制，使得应用程序之间可以进行通信，而且也遵从server/client模型。使用的时候客户端调用server端提供的接口就像是调用本地的函数一样。</strong>如下图所示就是一个典型的RPC结构图。</p>
+<p><img src="/2021/01/07/grpc_tracing/3959253-76284b64125a8673.png" alt="img"></p>
+<h3 id="gRPC-vs-Restful-API"><a href="#gRPC-vs-Restful-API" class="headerlink" title="gRPC vs. Restful API"></a>gRPC vs. Restful API</h3><p>既然是server/client模型，那么我们直接用restful api不是也可以满足吗，为什么还需要RPC呢？</p>
+<p>gRPC和restful API都提供了一套通信机制，用于server/client模型通信，而且它们都使用http作为底层的传输协议(严格地说, gRPC使用的http2.0，而restful api则不一定)。不过gRPC还是有些特有的优势，如下：</p>
+<ul>
+<li>gRPC可以通过protobuf来定义接口，从而可以有更加严格的接口约束条件。</li>
+<li>另外，通过protobuf可以将数据序列化为二进制编码，这会大幅减少需要传输的数据量，从而大幅提高性能。</li>
+<li>gRPC可以方便地支持流式通信(理论上通过http2.0就可以使用streaming模式, 但是通常web服务的restful api似乎很少这么用，通常的流式数据应用如视频流，一般都会使用专门的协议如HLS，RTMP等，这些就不是我们通常web服务了，而是有专门的服务器应用。）</li>
+</ul>
+<h3 id="Tracing"><a href="#Tracing" class="headerlink" title="Tracing"></a>Tracing</h3><p>微服务遍地都是，一个功能，一个接口都可能是一个微服务，微服务之间的调用混乱，无法追踪，很难找出瓶颈点，因此迫切需要一种方法来追踪服务之间的调用链路。</p>
+<ul>
+<li>MetaData</li>
+</ul>
+<p>Metadata 可以理解为一个 HTTP 请求的 Header（它的底层实现就是 HTTP/2 的 Header），用户可以通过访问和修改每个 gRPC Call 的 Metadata 来传递额外的信息：比如认证信息，比如用于追踪的 Request ID。</p>
+<ul>
+<li>interceptor</li>
+</ul>
+<p>Interceptor 有点类似于我们平时常用的 HTTP Middleware，不同的是它可以用在 Client 端和 Server 端。比如在收到请求之后输出日志，在请求出现错误的时候输出错误信息，比如获取请求中设置的 Request ID。</p>
+<ul>
+<li>Golang实现</li>
+</ul>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// UnaryInvoker is called by UnaryClientInterceptor to complete RPCs.</span></span><br><span class="line"><span class="keyword">type</span> UnaryInvoker <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, method <span class="keyword">string</span>, req, reply <span class="keyword">interface</span>&#123;&#125;, cc *ClientConn, opts ...CallOption)</span> <span class="title">error</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryClientInterceptor</span> <span class="title">intercepts</span> <span class="title">the</span> <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span> <span class="title">on</span> <span class="title">the</span> <span class="title">client</span>. <span class="title">invoker</span> <span class="title">is</span> <span class="title">the</span> <span class="title">handler</span> <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">RPC</span></span></span><br><span class="line"><span class="function">// <span class="title">and</span> <span class="title">it</span> <span class="title">is</span> <span class="title">the</span> <span class="title">responsibility</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">to</span> <span class="title">call</span> <span class="title">it</span>.</span></span><br><span class="line"><span class="function">// <span class="title">This</span> <span class="title">is</span> <span class="title">an</span> <span class="title">EXPERIMENTAL</span> <span class="title">API</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryClientInterceptor</span> <span class="title">func</span><span class="params">(ctx context.Context, method <span class="keyword">string</span>, req, reply <span class="keyword">interface</span>&#123;&#125;, cc *ClientConn, invoker UnaryInvoker, opts ...CallOption)</span> <span class="title">error</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryHandler</span> <span class="title">defines</span> <span class="title">the</span> <span class="title">handler</span> <span class="title">invoked</span> <span class="title">by</span> <span class="title">UnaryServerInterceptor</span> <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">normal</span></span></span><br><span class="line"><span class="function">// <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span>. <span class="title">If</span> <span class="title">a</span> <span class="title">UnaryHandler</span> <span class="title">returns</span> <span class="title">an</span> <span class="title">error</span>, <span class="title">it</span> <span class="title">should</span> <span class="title">be</span> <span class="title">produced</span> <span class="title">by</span> <span class="title">the</span></span></span><br><span class="line"><span class="function">// <span class="title">status</span> <span class="title">package</span>, <span class="title">or</span> <span class="title">else</span> <span class="title">gRPC</span> <span class="title">will</span> <span class="title">use</span> <span class="title">codes</span>.<span class="title">Unknown</span> <span class="title">as</span> <span class="title">the</span> <span class="title">status</span> <span class="title">code</span> <span class="title">and</span> <span class="title">err</span>.<span class="title">Error</span><span class="params">()</span> <span class="title">as</span></span></span><br><span class="line"><span class="function">// <span class="title">the</span> <span class="title">status</span> <span class="title">message</span> <span class="title">of</span> <span class="title">the</span> <span class="title">RPC</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryHandler</span> <span class="title">func</span><span class="params">(ctx context.Context, req <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">(<span class="keyword">interface</span>&#123;&#125;, error)</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryServerInterceptor</span> <span class="title">provides</span> <span class="title">a</span> <span class="title">hook</span> <span class="title">to</span> <span class="title">intercept</span> <span class="title">the</span> <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span> <span class="title">on</span> <span class="title">the</span> <span class="title">server</span>. <span class="title">info</span></span></span><br><span class="line"><span class="function">// <span class="title">contains</span> <span class="title">all</span> <span class="title">the</span> <span class="title">information</span> <span class="title">of</span> <span class="title">this</span> <span class="title">RPC</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">can</span> <span class="title">operate</span> <span class="title">on</span>. <span class="title">And</span> <span class="title">handler</span> <span class="title">is</span> <span class="title">the</span> <span class="title">wrapper</span></span></span><br><span class="line"><span class="function">// <span class="title">of</span> <span class="title">the</span> <span class="title">service</span> <span class="title">method</span> <span class="title">implementation</span>. <span class="title">It</span> <span class="title">is</span> <span class="title">the</span> <span class="title">responsibility</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">to</span> <span class="title">invoke</span> <span class="title">handler</span></span></span><br><span class="line"><span class="function">// <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">RPC</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryServerInterceptor</span> <span class="title">func</span><span class="params">(ctx context.Context, req <span class="keyword">interface</span>&#123;&#125;, info *UnaryServerInfo, handler UnaryHandler)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>Golang 的实现是把 Metadata 塞在了 context 里面，只需要使用 <code>metadata.FromOutgoingContext(ctx)</code> 和 <code>metadata.FromIncomingContext(ctx)</code> 就能够访问本次请求的 Metadata。概念清楚之后代码应该非常好写了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> requestIdKey = <span class="string">"requestId"</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// client 请求RPC增加MetaData拦截器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDClientInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryClientInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求的MetaData</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">      <span class="comment">// 未添加则创建</span></span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		value := ctx.Value(requestIdKey)</span><br><span class="line">		<span class="keyword">if</span> requestID, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; requestID != <span class="string">""</span> &#123;</span><br><span class="line">      <span class="comment">// md 不区分大小写，内部会转换为小写</span></span><br><span class="line">      md.Set(requestIdKey, requestID)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> invoker(metadata.NewOutgoingContext(ctx, md), method, req, resp, cc, opts...)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// server端获取MetaData数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDServerInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		req <span class="keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求过来的MetaData</span></span><br><span class="line">		md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 后去请求的requstId，并设置到当前context中</span></span><br><span class="line">		requestIDs := md[requestIdKey]</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(requestIDs) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">			ctx = context.WithValue(ctx, requestIdKey, requestIDs[<span class="number">0</span>])</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> handler(ctx, req)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

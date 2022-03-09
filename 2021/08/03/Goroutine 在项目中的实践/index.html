@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>Goroutine 在项目中的实践 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="Goroutine 在项目中的实践Goroutine 是Golang语言的一大特色，Goroutine的出现，使得并发得到大幅提升。我们一起看下Goroutine在项目中的实践。Goroutine并发控制在业务开发中，会碰到几个相互独立的耗时操作，可以并行执行，这个时候Goroutine是很方便派上用场的。如下所示：123456789101112131415161718192021222324252627282930313233// someOperation your work ...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Goroutine-在项目中的实践"><span class="toc-number">1.</span> <span class="toc-text">Goroutine 在项目中的实践</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Goroutine并发控制"><span class="toc-number">1.1.</span> <span class="toc-text">Goroutine并发控制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Gorotine-最大个数"><span class="toc-number">1.2.</span> <span class="toc-text">Gorotine 最大个数</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">1.3.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            Goroutine 在项目中的实践
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/08/03/Goroutine 在项目中的实践/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-08-03T15:00:00.000Z" itemprop="datePublished">2021-08-03</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>, <a class="article-tag-link" href="/tags/Goroutines/">Goroutines</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="Goroutine-在项目中的实践"><a href="#Goroutine-在项目中的实践" class="headerlink" title="Goroutine 在项目中的实践"></a>Goroutine 在项目中的实践</h3><blockquote>
+<p>Goroutine 是Golang语言的一大特色，Goroutine的出现，使得并发得到大幅提升。我们一起看下Goroutine在项目中的实践。</p>
+</blockquote>
+<h4 id="Goroutine并发控制"><a href="#Goroutine并发控制" class="headerlink" title="Goroutine并发控制"></a>Goroutine并发控制</h4><p>在业务开发中，会碰到几个相互独立的耗时操作，可以并行执行，这个时候Goroutine是很方便派上用场的。如下所示：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// someOperation your work to do</span></span><br><span class="line"><span class="comment">// if we have some data to return use channel to pass data</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">someOperation</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">  time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// anotherOperation</span></span><br><span class="line"><span class="comment">// another work indenpendent with someOperation</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">anotherOperation</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">  time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">bizFunc</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">  wg := sync.WaitGroup&#123;&#125;  <span class="comment">// sync.WatiGroup to sync goroutine</span></span><br><span class="line">  wg.Add(<span class="number">2</span>) <span class="comment">// we have 2 operation to do, so we add 2</span></span><br><span class="line">  </span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    err := someOperation()</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="comment">// whatever handler</span></span><br><span class="line">    &#125;</span><br><span class="line">    wg.Done()</span><br><span class="line">  &#125;()</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span>&#123;</span><br><span class="line">    err := anotherOperation()</span><br><span class="line">    wg.Done()</span><br><span class="line">  &#125;()</span><br><span class="line">  wg.Wait() <span class="comment">// wait all goroutine to return</span></span><br><span class="line">  <span class="comment">// other operation depend on the two before</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="Gorotine-最大个数"><a href="#Gorotine-最大个数" class="headerlink" title="Gorotine 最大个数"></a>Gorotine 最大个数</h4><p>上面的案例需要我们知道协程的数量，然后等待所有协程结束，那如果我们不确定协程的个数或者我们需要设置固定个数的协程，该如何做呢？</p>
+<p>其实也很简单，利用channel的阻塞特性，创建一个固定长度的channel，创建一个协程，在channel中写入一条数据，当channel被填满后，就会阻塞；协程结束后，从channle中消费一条数据，协程就又可以写入数据，如此可固定协程的数量。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// wrapped for wait group</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"context"</span></span><br><span class="line">	<span class="string">"sync"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> defaultSize = <span class="number">32</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// SizeWaitGroup the struct control limit of waitgroup</span></span><br><span class="line"><span class="keyword">type</span> SizeWaitGroup <span class="keyword">struct</span> &#123;</span><br><span class="line">	buf <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;  <span class="comment">// buffer to buf the current number of goroutines</span></span><br><span class="line">	wg  sync.WaitGroup <span class="comment">// the real wait group</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// NewSizeWaitGroup wait group with limit</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewSizeWaitGroup</span><span class="params">(size <span class="keyword">int</span>)</span> *<span class="title">SizeWaitGroup</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> size &lt;= <span class="number">0</span> &#123;</span><br><span class="line">		size = defaultSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> &amp;SizeWaitGroup&#123;</span><br><span class="line">		buf: <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, size), <span class="comment">// init the size of channel</span></span><br><span class="line">		wg:  sync.WaitGroup&#123;&#125;,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Add</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Add</span><span class="params">()</span></span> &#123;</span><br><span class="line">	_ = c.AddWithContext(context.Background())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// AddWithContext</span></span><br><span class="line"><span class="comment">// blocking if the number of goroutines has been reached</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">AddWithContext</span><span class="params">(ctx context.Context)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done():   <span class="comment">// parent goroutines call canceled or timedout or other happend</span></span><br><span class="line">		<span class="keyword">return</span> ctx.Err()</span><br><span class="line">	<span class="keyword">case</span> c.buf &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;: <span class="comment">// block if channel is full</span></span><br><span class="line">		<span class="keyword">break</span></span><br><span class="line">	&#125;</span><br><span class="line">	c.wg.Add(<span class="number">1</span>) <span class="comment">// we created a goroutine</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Done</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Done</span><span class="params">()</span></span> &#123;</span><br><span class="line">	&lt;-c.buf  <span class="comment">// a goroutine finished</span></span><br><span class="line">	c.wg.Done()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Wait</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Wait</span><span class="params">()</span></span> &#123;</span><br><span class="line">	c.wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如上代码所示，创建一个固定长度的channel，添加协程之前先往队列里增加一个占位符(struct{} 结构不占用内存，协程数量大时不会太占用内存)，然后再调用真正的WaitGroup增加协程控制，执行完成后调用Done方法，从队列中取出占位符调用真正的WaitGroup的Done函数。</p>
+<p>调用如下:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">swg := NewSizeWaitGroup(<span class="number">128</span>)</span><br><span class="line"><span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="number">1000</span>; index += <span class="number">1</span> &#123;</span><br><span class="line">  swg.Add()</span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="comment">// do what you want</span></span><br><span class="line">    swg.Done()</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">swg.Wait()</span><br></pre></td></tr></table></figure>
+
+<p>这样，协程的最大数量会保持在128个。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>Golang提供的channel与Goroutine 提供很方便的通信与并发功能，在实际的业务开发中，可以很方便讲相互独立的功能并发处理，提高系统的吞吐量。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

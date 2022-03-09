@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>mongodb replset 搭建 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="简介Mongodb 副本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点或者Arbiter节点。副本集的所有写操作都交给Primary，Secondary从Primary同步oplog到本实例，以保持复制集内所有成员存储相同的数据集，实现数据的高可用。常见场景数据冗余集群可增加延迟写的节点，防止误操作读写分离适合读多写少的业务典型结构集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定A...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#简介"><span class="toc-number">1.</span> <span class="toc-text">简介</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#常见场景"><span class="toc-number">1.0.1.</span> <span class="toc-text">常见场景</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#典型结构"><span class="toc-number">1.0.2.</span> <span class="toc-text">典型结构</span></a></li></ol></li></ol><li class="toc-item toc-level-3"><a class="toc-link" href="#节点角色"><span class="toc-number">2.</span> <span class="toc-text">节点角色</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#两种结构"><span class="toc-number">3.</span> <span class="toc-text">两种结构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#选举机制"><span class="toc-number">3.1.</span> <span class="toc-text">选举机制</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#特殊角色"><span class="toc-number">3.1.1.</span> <span class="toc-text">特殊角色</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#所有角色"><span class="toc-number">3.1.2.</span> <span class="toc-text">所有角色</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#触发选举条件"><span class="toc-number">3.1.3.</span> <span class="toc-text">触发选举条件</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#读写配置"><span class="toc-number">4.</span> <span class="toc-text">读写配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#配置"><span class="toc-number">5.</span> <span class="toc-text">配置</span></a></li>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            mongodb replset 搭建
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2019/09/16/mongodb/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2019-09-16T04:04:59.000Z" itemprop="datePublished">2019-09-16</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/mongodb/">mongodb</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>Mongodb 副本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点或者Arbiter节点。<br>副本集的所有写操作都交给Primary，Secondary从Primary同步oplog到本实例，以保持复制集内所有成员存储相同的数据集，实现数据的高可用。</p>
+<h5 id="常见场景"><a href="#常见场景" class="headerlink" title="常见场景"></a>常见场景</h5><ul>
+<li>数据冗余<br>集群可增加延迟写的节点，防止误操作</li>
+<li>读写分离<br>适合读多写少的业务</li>
+</ul>
+<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><p><img src="/2019/09/16/mongodb/mongo-replset.svg" alt="mongo结构"></p>
+<p>集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定</p>
+<blockquote>
+<p>A replica set can have up to 50 members but only 7 voting members.</p>
+<p>一个集群可以又最多50个节点，但有7个可投票的节点</p>
+</blockquote>
+<h3 id="节点角色"><a href="#节点角色" class="headerlink" title="节点角色"></a>节点角色</h3><ol>
+<li>主节点(primary)</li>
+</ol>
+<p>可接收所有的读写请求；同步oplog到从节点。一个Replica Set只能有一个Primary节点，当Primary挂掉后，其他Secondary或者Arbiter节点会重新选举出来一个主节点。</p>
+<ol start="2">
+<li>副本节点(secondary)</li>
+</ol>
+<p>与主节点保持同样的数据集。当主节点挂掉的时候，参与选主。</p>
+<ol start="3">
+<li>仲裁者(arbiter)</li>
+</ol>
+<p>不保持数据，不可能成为主节点，只进行投票选举主节点。为了打破投票中的偶数个节点的情况，Arbiter几乎没什么大的硬件资源需求.</p>
+<blockquote>
+<p>Do not run an arbiter on systems that also host the primary or the secondary members of the replica set.</p>
+<p>不要把仲裁节点与主节点或者从节点放在一台机器</p>
+</blockquote>
+<h3 id="两种结构"><a href="#两种结构" class="headerlink" title="两种结构"></a>两种结构</h3><ul>
+<li><strong>PSS</strong></li>
+</ul>
+<p>Primary + Secondary + Secondary模式，通过Primary和Secondary搭建的Replica Set</p>
+<p><img src="/2019/09/16/mongodb/PSS.png" alt="PSS"></p>
+<ul>
+<li><strong>PSA</strong></li>
+</ul>
+<p>Primary + Secondary + Arbiter模式，使用Arbiter搭建Replica Set</p>
+<p><img src="/2019/09/16/mongodb/PSA.png" alt="PSA"></p>
+<p>偶数个数据节点，加一个Arbiter构成的Replica Set</p>
+<h4 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h4><p>副本集通过 replSetInitiate 命令或 rs.initiate() 命令进行初始化。</p>
+<p>初始化后各个节点开始发送心跳消息，并发起 Primary 选举操作，获得大多数成员投票支持的节点，会成为 Primary，其余节点成为 Secondary。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">config = &#123;</span><br><span class="line">    _id : "test_replset",   # 副本集名称</span><br><span class="line">    members : [</span><br><span class="line">        &#123;_id : 0, host : "rs1.example.net:27017"&#125;,      # 节点列表</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">1</span>, <span class="attr">host</span> : <span class="string">"rs2.example.net:27017"</span>&#125;,</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">2</span>, <span class="attr">host</span> : <span class="string">"rs3.example.net:27017"</span>&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br><span class="line">rs.initiate(config)</span><br></pre></td></tr></table></figure>
+
+<p>假设复制集内投票成员（后续介绍）数量为 N，则大多数为 N/2 + 1，当复制集内存活成员数量不足大多数时，整个复制集将无法选举出 Primary，复制集将无法提供写服务，处于只读状态</p>
+<ul>
+<li><p>Mongodb副本集的选举基于Bully算法，这是一种协调者竞选算法</p>
+</li>
+<li><p>Primary 的选举受节点间心跳、优先级、最新的 oplog 时间等多种因素影响</p>
+</li>
+</ul>
+<h5 id="特殊角色"><a href="#特殊角色" class="headerlink" title="特殊角色"></a><strong>特殊角色</strong></h5><ul>
+<li>Arbiter</li>
+</ul>
+<p>Arbiter 节点只参与投票，不能被选为 Primary，并且不从 Primary 同步数据。</p>
+<ul>
+<li>Priority==0</li>
+</ul>
+<p>Priority0节点的选举优先级为0，不会被选举为 Primary。</p>
+<ul>
+<li>Vote==0</li>
+</ul>
+<p>Mongodb 3.0里，复制集成员最多50个，参与 Primary 选举投票的成员最多7个，其他成员（Vote0）的 vote 属性必须设置为0，即不参与投票。</p>
+<ul>
+<li>Hidden==true</li>
+</ul>
+<p>Hidden 署行的 节点不能被选为primary（Priority 为0），并且对client 不可见。</p>
+<ul>
+<li>Delayed==time seconds</li>
+</ul>
+<p>Delayed 节点必须是 Hidden 节点，否则会出现数据不一致的情况； 其数据落后与 Primary 一段时间（可配置，比如半小时1小时等）</p>
+<h5 id="所有角色"><a href="#所有角色" class="headerlink" title="所有角色"></a>所有角色</h5><table>
+<thead>
+<tr>
+<th><strong>Number</strong></th>
+<th><strong>Name</strong></th>
+<th><strong>State Description</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>STARTUP</td>
+<td>还不是集群中的活跃点，读取配置阶段</td>
+</tr>
+<tr>
+<td>1</td>
+<td>PRIMARY</td>
+<td>唯一的写节点</td>
+</tr>
+<tr>
+<td>2</td>
+<td>SECONDARY</td>
+<td>从节点，主节点数据的拷贝</td>
+</tr>
+<tr>
+<td>3</td>
+<td>RECOVERING</td>
+<td>Members either perform startup self-checks, or transition from completing a rollback or resync.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>STARTUP2</td>
+<td>已经加入集群，同步数据</td>
+</tr>
+<tr>
+<td>6</td>
+<td>UNKNOWN</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>ARBITER</td>
+<td>仲裁，投票选举primary</td>
+</tr>
+<tr>
+<td>8</td>
+<td>DOWN</td>
+<td>不可达节点</td>
+</tr>
+<tr>
+<td>9</td>
+<td>ROLLBACK</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>REMOVED</td>
+<td>c曾经再集群，但被移除</td>
+</tr>
+</tbody></table>
+<h5 id="触发选举条件"><a href="#触发选举条件" class="headerlink" title="触发选举条件"></a><strong>触发选举条件</strong></h5><ul>
+<li>新增一个节点到副本集</li>
+<li>初始化一个副本集</li>
+<li>primary放弃角色，如 rs.stepDown()/rs.reconfig()</li>
+<li>从库不能连接到主库(默认超过10s，可通过heartbeatTimeoutSecs参数控制)，由从库发起选举</li>
+</ul>
+<p>副本集的自动failover是通过心跳检测实现的，进而实现高可用</p>
+<p><img src="/2019/09/16/mongodb/mongo-failover.png" alt="mongo-failover"></p>
+<h3 id="读写配置"><a href="#读写配置" class="headerlink" title="读写配置"></a>读写配置</h3><p><strong>Read Preference</strong></p>
+<blockquote>
+<p>All read preference modes except primary may return stale data because secondaries replicate operations from the primary with some delay. Ensure that your application can tolerate stale data if you choose to use a non-primary mode.</p>
+<p>除了primary节点，其他的都有可能读到脏数据。保证你的app能够容忍脏数据</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th><strong>Read Preference Mode</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>primary</td>
+<td>优先主节点，默认<br><br> Multi-document transactions that contain read operations must use read preference primary. All operations in a given transaction must route to the same member.</td>
+</tr>
+<tr>
+<td>primaryPreferred</td>
+<td>主节点优先，主不可用，读从节点</td>
+</tr>
+<tr>
+<td>secondary</td>
+<td>从节点读取</td>
+</tr>
+<tr>
+<td>secondaryPreferred</td>
+<td>从节点优先，没有从节点可用，读主节点</td>
+</tr>
+<tr>
+<td>nearest</td>
+<td>网络延迟最少的节点，不管主从</td>
+</tr>
+</tbody></table>
+<p><strong>Write Concern</strong></p>
+<blockquote>
+<p>Write concern describes the level of acknowledgment requested from MongoDB for write operations</p>
+<p>写操作的确认</p>
+</blockquote>
+<p>选项如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123; w: &lt;value&gt;, j: &lt;boolean&gt;, wtimeout: &lt;number&gt; &#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>w: 写操作已经传播了几个mongod实例</p>
+<p>j: 等待写操作写入磁盘journal</p>
+<p>wtimeout: 写操作阻塞时间</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>value</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><number></number></td>
+<td>w: 1,默认值（写入主节点）<br>w: 0,不需要确认写操作，可能会抛出异常<br>w: &gt;1,</td>
+</tr>
+<tr>
+<td>majority</td>
+<td>大多数数据可投票节点</td>
+</tr>
+<tr>
+<td><custom write concern name></custom></td>
+<td>写入一个标记的节点</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Hidden</strong>, <strong>delayed</strong>, and <strong>priority 0</strong> members with member[n].votes greater than 0 can acknowledge majority write operations.</p>
+</blockquote>
+<p><strong>Read Concern</strong>（一致性/隔离性）</p>
+<table>
+<thead>
+<tr>
+<th>level</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>local</td>
+<td></td>
+</tr>
+<tr>
+<td>available</td>
+<td></td>
+</tr>
+<tr>
+<td>marjority</td>
+<td></td>
+</tr>
+<tr>
+<td>linearizable</td>
+<td></td>
+</tr>
+<tr>
+<td>snapshot</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h3><ul>
+<li>db version v4.2.0</li>
+<li>配置文件，复制三份，修改</li>
+</ul>
+<p>path/dbPath/pidFilePath</p>
+<p>bindIp：如果外网，需要将ip绑定为0.0.0.0</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"># for documentation of all options, see:</span><br><span class="line">#   http://docs.mongodb.org/manual/reference/configuration-options/</span><br><span class="line"></span><br><span class="line"># where to write logging data.</span><br><span class="line">systemLog:</span><br><span class="line">  destination: file</span><br><span class="line">  logAppend: true</span><br><span class="line">  path: /var/log/mongodb/mongod-27017.log</span><br><span class="line"></span><br><span class="line"># Where and how to store data.</span><br><span class="line">storage:</span><br><span class="line">  dbPath: /var/lib/mongo-27017</span><br><span class="line">  journal:</span><br><span class="line">    enabled: true</span><br><span class="line">#  engine:</span><br><span class="line">#  wiredTiger:</span><br><span class="line"></span><br><span class="line"># how the process runs</span><br><span class="line">processManagement:</span><br><span class="line">  fork: true  # fork and run in background</span><br><span class="line">  pidFilePath: /var/run/mongodb/mongod-27017.pid  # location of pidfile</span><br><span class="line">  timeZoneInfo: /usr/share/zoneinfo</span><br><span class="line"></span><br><span class="line"># network interfaces</span><br><span class="line">net:</span><br><span class="line">  port: 27017</span><br><span class="line">  bindIp: 127.0.0.1  # Enter 0.0.0.0,:: to bind to all IPv4 and IPv6 addresses or, alternatively, use the net.bindIpAll setting.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#security:</span><br><span class="line"></span><br><span class="line">#operationProfiling:</span><br><span class="line"></span><br><span class="line">replication:</span><br><span class="line">    replSetName: screensaver    # replset名称，同一副本集取值相同</span><br><span class="line">    oplogSizeMB: 4096</span><br><span class="line"></span><br><span class="line">#sharding:</span><br><span class="line"></span><br><span class="line">## Enterprise-Only Options</span><br><span class="line"></span><br><span class="line">#auditLog:</span><br><span class="line"></span><br><span class="line">#snmp:</span><br></pre></td></tr></table></figure>
+
+<p>这里我搞了三个，启动</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /etc/mongod-27017.conf</span><br><span class="line">mongod -f /etc/mongod-27018.conf</span><br><span class="line">mongod -f /etc/mongod-27019.conf</span><br></pre></td></tr></table></figure>
+
+<p>随便进入一个实例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line">&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(0, 0),</span><br><span class="line">	&quot;ok&quot; : 0,</span><br><span class="line">	&quot;errmsg&quot; : &quot;no replset config has been received&quot;,</span><br><span class="line">	&quot;code&quot; : 94,</span><br><span class="line">	&quot;codeName&quot; : &quot;NotYetInitialized&quot;,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(0, 0),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">&gt; rs.initiate()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;info2&quot; : &quot;no configuration specified. Using a default configuration for the set&quot;,</span><br><span class="line">	&quot;me&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625811, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625811, 1)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:OTHER&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;set&quot; : &quot;screensaver&quot;,</span><br><span class="line">	&quot;date&quot; : ISODate(&quot;2019-09-16T09:23:35.861Z&quot;),</span><br><span class="line">	&quot;myState&quot; : 1,</span><br><span class="line">	&quot;term&quot; : NumberLong(1),</span><br><span class="line">	&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceId&quot; : -1,</span><br><span class="line">	&quot;heartbeatIntervalMillis&quot; : NumberLong(2000),</span><br><span class="line">	&quot;optimes&quot; : &#123;</span><br><span class="line">		&quot;lastCommittedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastCommittedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;readConcernMajorityOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;readConcernMajorityWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;appliedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;durableOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastAppliedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;lastDurableWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;)</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;lastStableRecoveryTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;lastStableCheckpointTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;members&quot; : [</span><br><span class="line">		&#123;</span><br><span class="line">			&quot;_id&quot; : 0,</span><br><span class="line">			&quot;name&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">			&quot;ip&quot; : &quot;127.0.0.1&quot;,</span><br><span class="line">			&quot;health&quot; : 1,</span><br><span class="line">			&quot;state&quot; : 1,</span><br><span class="line">			&quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">			&quot;uptime&quot; : 19222,</span><br><span class="line">			&quot;optime&quot; : &#123;</span><br><span class="line">				&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">				&quot;t&quot; : NumberLong(1)</span><br><span class="line">			&#125;,</span><br><span class="line">			&quot;optimeDate&quot; : ISODate(&quot;2019-09-16T09:23:34Z&quot;),</span><br><span class="line">			&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceId&quot; : -1,</span><br><span class="line">			&quot;infoMessage&quot; : &quot;could not find member to sync from&quot;,</span><br><span class="line">			&quot;electionTime&quot; : Timestamp(1568625811, 2),</span><br><span class="line">			&quot;electionDate&quot; : ISODate(&quot;2019-09-16T09:23:31Z&quot;),</span><br><span class="line">			&quot;configVersion&quot; : 1,</span><br><span class="line">			&quot;self&quot; : true,</span><br><span class="line">			&quot;lastHeartbeatMessage&quot; : &quot;&quot;</span><br><span class="line">		&#125;</span><br><span class="line">	],</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625814, 4),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625814, 4)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt;</span><br></pre></td></tr></table></figure>
+
+<p>初始化后，该实例成为primary，单机实例，增加其他节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">screensaver:PRIMARY&gt; rs.add(&apos;127.0.0.1:27018&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625914, 2),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625914, 2)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt; rs.addArb(&apos;127.0.0.1:27019&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625931, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625931, 1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>至此， PSA 模式的集群已经创建成功</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

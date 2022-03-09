@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>Grpc拦截器 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="gRPC 拦截器服务端拦截器grpc接口服务端拦截器，一般用来做一些预处理及后处理操作。如下，举两个常用的例子。在微服务之间使用gRPC互相调用的时候，会传入一些公共的与业务不相关的元数据，这些数据就很适合在拦截器中实现。如下服务端的拦截器将gRPC client传入的数据放入gRPC的context中，接口中就可以使用ctx.Value去获取该数据。1234567891011121314151617181920212223242526272829303132// MetaDat...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#gRPC-拦截器"><span class="toc-number">1.</span> <span class="toc-text">gRPC 拦截器</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#服务端拦截器"><span class="toc-number">1.1.</span> <span class="toc-text">服务端拦截器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#服务端流式接口拦截器"><span class="toc-number">1.2.</span> <span class="toc-text">服务端流式接口拦截器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#gRPC客户端拦截器"><span class="toc-number">1.3.</span> <span class="toc-text">gRPC客户端拦截器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#流式客户端拦截器"><span class="toc-number">1.4.</span> <span class="toc-text">流式客户端拦截器</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">1.5.</span> <span class="toc-text">总结</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            Grpc拦截器
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/04/14/Grpc拦截器/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-04-14T02:23:59.000Z" itemprop="datePublished">2021-04-14</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>, <a class="article-tag-link" href="/tags/gRPC/">gRPC</a>, <a class="article-tag-link" href="/tags/拦截器/">拦截器</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h1 id="gRPC-拦截器"><a href="#gRPC-拦截器" class="headerlink" title="gRPC 拦截器"></a>gRPC 拦截器</h1><h2 id="服务端拦截器"><a href="#服务端拦截器" class="headerlink" title="服务端拦截器"></a>服务端拦截器</h2><p>grpc接口服务端拦截器，一般用来做一些预处理及后处理操作。如下，举两个常用的例子。</p>
+<ol>
+<li>在微服务之间使用gRPC互相调用的时候，会传入一些公共的与业务不相关的元数据，这些数据就很适合在拦截器中实现。</li>
+</ol>
+<p>如下服务端的拦截器将gRPC client传入的数据放入gRPC的context中，接口中就可以使用ctx.Value去获取该数据。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MetaDataInterceptor get grpc server info, requestId/traceId/LogId</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">MetaServerDataInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">  <span class="comment">// 拦截器函数签名</span></span><br><span class="line">  <span class="comment">// @params ctx Grpc context</span></span><br><span class="line">  <span class="comment">// @params req grpc request</span></span><br><span class="line">  <span class="comment">// @params info grpc request info</span></span><br><span class="line">  <span class="comment">// @params handler the grpc method</span></span><br><span class="line">   <span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">      req <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">      info *grpc.UnaryServerInfo,</span></span></span><br><span class="line"><span class="function"><span class="params">      handler grpc.UnaryHandler)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">     </span><br><span class="line">     <span class="comment">// do what you want to do</span></span><br><span class="line">     <span class="comment">// get metadata from grpc client</span></span><br><span class="line">     md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">	   <span class="keyword">if</span> !ok &#123;</span><br><span class="line">		     md = metadata.Pairs()</span><br><span class="line">	   &#125;</span><br><span class="line">	   <span class="comment">// Set request info for context.</span></span><br><span class="line">     <span class="comment">// define your key</span></span><br><span class="line">     <span class="keyword">for</span> _, key := <span class="keyword">range</span> []<span class="keyword">string</span>&#123;<span class="string">"requestId"</span>&#125; &#123;</span><br><span class="line">		    value := md.Get(key)</span><br><span class="line">		    <span class="comment">// ignore it if not exists.</span></span><br><span class="line">		    <span class="keyword">if</span> <span class="built_in">len</span>(value) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">            <span class="comment">// set value to context. you can use ctx.Value to get it from your grpc method</span></span><br><span class="line">			      ctx = context.WithValue(ctx, key, value[<span class="number">0</span>])</span><br><span class="line">		    &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="comment">// next </span></span><br><span class="line">      <span class="keyword">return</span> handler(ctx, req)</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>在实际的环境中，经常会需要在gRPC 接口之前之后做一些处理。比如，在开始之前记录时间，执行之后记录耗时操作；执行之后判断执行结果等等</li>
+</ol>
+<p>如下所示，实现了一个记录接口耗时功能的拦截器，当然实际不会这么low。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// API time elas time get grpc server info</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">APITimeInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">  <span class="comment">// 拦截器签名</span></span><br><span class="line">   <span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">      req <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">      info *grpc.UnaryServerInfo,</span></span></span><br><span class="line"><span class="function"><span class="params">      handler grpc.UnaryHandler)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">     </span><br><span class="line">     <span class="comment">// do what you want to do</span></span><br><span class="line">     start := time.Now().UnixNano()</span><br><span class="line">     <span class="comment">// do gRPC method</span></span><br><span class="line">     ret := handler(ctx, req)</span><br><span class="line">     <span class="comment">// do what you want after the grpc method</span></span><br><span class="line">     fmt.Println(time.Now().UnixNano() - start)</span><br><span class="line">     <span class="keyword">return</span> ret</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="服务端流式接口拦截器"><a href="#服务端流式接口拦截器" class="headerlink" title="服务端流式接口拦截器"></a>服务端流式接口拦截器</h2><p>在golang的gRPC中，普通接口与stream接口的拦截器，需要分别实现。以上的拦截器只用于非stream的接口，对于stream接口，以上拦截器是不生效的。<br>流式拦截器函数签名如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> StreamServerInterceptor <span class="function"><span class="keyword">func</span><span class="params">(srv <span class="keyword">interface</span>&#123;&#125;, ss ServerStream, info *StreamServerInfo, handler StreamHandler)</span> <span class="title">error</span></span></span><br></pre></td></tr></table></figure>
+
+<p>查看流式拦截器可知，stream的context是在ServerStream中的，因此stream 要传递context 需要继承ServerStream并覆盖context。如下所示</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// WrappedStream wraps around the embedded grpc.ServerStream, and intercepts the Context</span></span><br><span class="line"><span class="keyword">type</span> WrappedStream <span class="keyword">struct</span> &#123;</span><br><span class="line">	grpc.ServerStream <span class="comment">// serverStream interface</span></span><br><span class="line">	Ctx *context.Context <span class="comment">// 定义ctx，覆盖ServerStream中的context</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Context override the context method and can config the context manually</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c WrappedStream)</span> <span class="title">Context</span><span class="params">()</span> <span class="title">context</span>.<span class="title">Context</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> *c.Ctx</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// NewWrappedStream wrapper the grpc.ServerStream</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewWrappedStream</span><span class="params">(s grpc.ServerStream, ctx *context.Context)</span> <span class="title">grpc</span>.<span class="title">ServerStream</span></span> &#123;</span><br><span class="line">	wrapper := &amp;WrappedStream&#123;</span><br><span class="line">		ServerStream: s,</span><br><span class="line">		Ctx:          ctx,</span><br><span class="line">	&#125;</span><br><span class="line">	stream := grpc.ServerStream(wrapper)</span><br><span class="line">	<span class="keyword">return</span> stream</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现该封装之后，就可以将上层的context获取并将元数据写入context后，调用NewWrappedStream传入gRPC的接口调用中。如下所示</p>
+<ol>
+<li>流式拦截器实现元数据的传递</li>
+</ol>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// stream method to get meta data</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">MetaStreamServerInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">StreamServerInterceptor</span></span> &#123;</span><br><span class="line">  <span class="comment">// 函数签名</span></span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		srv <span class="keyword">interface</span>&#123;&#125;, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">     <span class="comment">// 获取当前 grpc context</span></span><br><span class="line">     ctx := ss.Context()</span><br><span class="line">     md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">	   <span class="keyword">if</span> !ok &#123;</span><br><span class="line">		     md = metadata.Pairs()</span><br><span class="line">	   &#125;</span><br><span class="line">	   <span class="comment">// Set request info for context.</span></span><br><span class="line">     <span class="comment">// define your key</span></span><br><span class="line">     <span class="keyword">for</span> _, key := <span class="keyword">range</span> []<span class="keyword">string</span>&#123;<span class="string">"requestId"</span>&#125; &#123;</span><br><span class="line">		    value := md.Get(key)</span><br><span class="line">		    <span class="comment">// ignore it if not exists.</span></span><br><span class="line">		    <span class="keyword">if</span> <span class="built_in">len</span>(value) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">            <span class="comment">// set value to context. you can use ctx.Value to get it from your grpc method</span></span><br><span class="line">			      ctx = context.WithValue(ctx, key, value[<span class="number">0</span>])</span><br><span class="line">		    &#125;</span><br><span class="line">     &#125;</span><br><span class="line">    <span class="comment">// set context to next </span></span><br><span class="line">		<span class="keyword">return</span> handler(srv, streaminterceptor.NewWrappedStream(ss, &amp;ctx))</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="gRPC客户端拦截器"><a href="#gRPC客户端拦截器" class="headerlink" title="gRPC客户端拦截器"></a>gRPC客户端拦截器</h2><p>gRPC客户端拦截器是在调用gRPC接口之前与之后执行的操作。比如，元数据需要在请求接口之前塞入到metaData中(http2.0Header)，才会传递到gRPC的服务端。<br>如下，将当前接口context中的数据放入header中传入服务端。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// request grpc service with requestId/traceId info.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">MetaClientDataInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryClientInterceptor</span></span> &#123;</span><br><span class="line">  <span class="comment">// 函数签名</span></span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">	  <span class="comment">// 获取当前header数据，没有则新建一个</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, key := <span class="keyword">range</span> keyNames &#123;</span><br><span class="line">			value := ctx.Value(key)</span><br><span class="line">			<span class="keyword">if</span> strValue, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; strValue != <span class="string">""</span> &#123;</span><br><span class="line">			  </span><br><span class="line">				md.Set(key, strValue)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 将header写入</span></span><br><span class="line">		ctx = metadata.NewOutgoingContext(ctx, md)</span><br><span class="line">		<span class="comment">// 执行调用</span></span><br><span class="line">		<span class="keyword">return</span> invoker(ctx, method, req, resp, cc, opts...)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="流式客户端拦截器"><a href="#流式客户端拦截器" class="headerlink" title="流式客户端拦截器"></a>流式客户端拦截器</h2><p>Stream client的实现也是比较简单的，与服务端不同的是，客户端的流式拦截器不需要封装一层，可以直接使用。<br>如下，同样实现了元数据传递到服务端的拦截器。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// MetaStreamClientInterceptor get grpc client info, requestId/traceId/LogId for grpc stream server</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">MetaStreamClientInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">StreamClientInterceptor</span></span> &#123;</span><br><span class="line">  <span class="comment">// 函数签名</span></span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method <span class="keyword">string</span>, streamer grpc.Streamer,</span></span></span><br><span class="line"><span class="function"><span class="params">		opts ...grpc.CallOption)</span> <span class="params">(grpc.ClientStream, error)</span></span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从context获取元数据</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, key := <span class="keyword">range</span> keyNames &#123;</span><br><span class="line">			value := ctx.Value(key)</span><br><span class="line">			<span class="keyword">if</span> strValue, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; strValue != <span class="string">""</span> &#123;</span><br><span class="line">				md.Set(key, strValue)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// set metadata to ctx</span></span><br><span class="line">		ctx = metadata.NewOutgoingContext(ctx, md)</span><br><span class="line"></span><br><span class="line">		clientStream, err := streamer(ctx, desc, cc, method, opts...)</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> clientStream, err</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>拦截器为gRPC的服务端/客户端复用公共模块提供了一种很简单方便的方法，只需要实现对应的拦截器函数，在服务端启动或者客户端连接的时候作为选项传入即可(自行搜索)。<br>需要注意的是，在Golang中，拦截器分为普通接口与流式接口的拦截器，需要分别实现。</p>
+<ol>
+<li>流式服务端拦截器</li>
+</ol>
+<p>gRPC中拦截器流式接口拦截器需要实现如下签名的函数，有兴趣可深入了解下。例子如上所示</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// StreamServerInterceptor provides a hook to intercept the execution of a streaming RPC on the server.</span></span><br><span class="line"><span class="comment">// info contains all the information of this RPC the interceptor can operate on. And handler is the</span></span><br><span class="line"><span class="comment">// service method implementation. It is the responsibility of the interceptor to invoke handler to</span></span><br><span class="line"><span class="comment">// complete the RPC.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span><span class="params">(srv <span class="keyword">interface</span>&#123;&#125;, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler)</span> <span class="title">error</span></span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意streamServer拦截器如果需要传递context，需要将ServerStream进行封装，覆盖Context 函数</p>
+</blockquote>
+<ol start="2">
+<li>普通服务端拦截器</li>
+</ol>
+<p>普通方法的拦截器实现比较简单，实现如下签名函数</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// @params ctx: grpc context</span></span><br><span class="line"><span class="comment">// @params req: the request params</span></span><br><span class="line"><span class="comment">// @params info: the grpc request info</span></span><br><span class="line"><span class="comment">// @params handler: the real grpc method</span></span><br><span class="line"><span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		req <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		info *grpc.UnaryServerInfo,</span></span></span><br><span class="line"><span class="function"><span class="params">		handler grpc.UnaryHandler)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>客户端普通拦截器</li>
+</ol>
+<p>golang在调用grpc之前执行的公共的操作，比如要把requestId塞到header中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// @params method: the RPC name</span></span><br><span class="line"><span class="comment">// @params req: the request</span></span><br><span class="line"><span class="comment">// @params resp: the response</span></span><br><span class="line"><span class="comment">// @params cc: the ClientConn on which the RPC was invoked</span></span><br><span class="line"><span class="comment">// @params invoker: the invoker of grpc methor</span></span><br><span class="line"><span class="comment">// @params opts: the option</span></span><br><span class="line"><span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span></span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>客户端流失拦截器</li>
+</ol>
+<p>实现如下签名的函数即可</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// @params desc: contains a description of the stream</span></span><br><span class="line"><span class="comment">// @params cc: the ClientConn on which the RPC was invoked</span></span><br><span class="line"><span class="comment">// @params method: the RPC name</span></span><br><span class="line"><span class="comment">// @params streamer: the handler to create a ClientStream and it is the responsibility of the interceptor to call it</span></span><br><span class="line"><span class="comment">// @params opts: the option</span></span><br><span class="line"><span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, desc *StreamDesc, cc *ClientConn, method <span class="keyword">string</span>, streamer Streamer, opts ...CallOption)</span> <span class="params">(ClientStream, error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>以上即为Golang的拦截器实现，可以分为服务端与客户端的拦截器，两端分别有流式拦截器与普通接口拦截器，在使用的时候可根据自己的业务需求实现。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>
