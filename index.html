@@ -127,6 +127,89 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/09/20/Nginx内置变量/">Nginx 负载均衡算法</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-09-20T10:25:01.000Z" itemprop="datePublished">2021-09-20</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Load-Balance/">Load Balance</a>, <a class="article-tag-link" href="/tags/Nginx/">Nginx</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="nginx-内置变量"><a href="#nginx-内置变量" class="headerlink" title="nginx 内置变量"></a>nginx 内置变量</h3><p>内置变量存放在 ngx_http_core_module 模块中，变量的命名方式和 apache 服务器变量是一致的。总而言之，这些变量代表着客户端请求头的内容，例如httpuseragent,http_cookie, 等等。</p>
+<p>下面是 nginx 支持的所有内置变量：</p>
+<h4 id="arg-name"><a href="#arg-name" class="headerlink" title="$arg_name"></a><strong>$arg_name</strong></h4><p>这个变量是获取链接中参数名为 <strong>name</strong> 对应的值；<br> 如请求链接: <a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%3Fname%3D100%26a%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test?name=100&amp;a=200</a><br> argn​ame=′100′,arg_a = ‘200’</p>
+<h4 id="args"><a href="#args" class="headerlink" title="$args"></a>$args</h4><p>这个变量获取链接中所有的参数，即链接问号后面的所有的东西；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%3Fname%3D100%26a%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test?name=100&amp;a=200</a><br> $args = ‘name=100&amp;a=200’</p>
+<h4 id="binary-remote-addr"><a href="#binary-remote-addr" class="headerlink" title="$binary_remote_addr"></a><strong>$binary_remote_addr</strong></h4><p>客户端的二进制的 ip 地址；</p>
+<h4 id="body-bytes-sent"><a href="#body-bytes-sent" class="headerlink" title="$body_bytes_sent"></a><strong>$body_bytes_sent</strong></h4><p>传输给客户端的字节数，响应头不计算在内；</p>
+<h4 id="bytes-sent"><a href="#bytes-sent" class="headerlink" title="$bytes_sent"></a><strong>$bytes_sent</strong></h4><p>nginx 返回给客户端的字节数，包括响应头和响应体;</p>
+<h4 id="connection"><a href="#connection" class="headerlink" title="$connection"></a><strong>$connection</strong></h4><p>TCP 连接的序列号，并不是一次 http 请求就会更滑一个序列号，http 有 keep-alive 机制，一个序列号会维持</p>
+<h4 id="connection-requests"><a href="#connection-requests" class="headerlink" title="connection_requests"></a><strong>connection_requests</strong></h4><p>TCP 连接当前的请求数量，服务处理请求的个数，重启后重置为 0</p>
+<h4 id="content-length"><a href="#content-length" class="headerlink" title="$content_length"></a><strong>$content_length</strong></h4><p>“Content-Length” 请求头字段， 客户端请求的头部中的 content-length 值；</p>
+<h4 id="content-type"><a href="#content-type" class="headerlink" title="$content_type"></a><strong>$content_type</strong></h4><p>“Content-Type” 请求头字段</p>
+<h4 id="cookie-name"><a href="#cookie-name" class="headerlink" title="$cookie_name"></a><strong>$cookie_name</strong></h4><p>获取 cookie 名称为 name 的 cookie 值；<br> 如 cookie：PHP_VERSION: 1.0; NAME:XIAOMING;….<br> $cookie_NAME = ‘XIAOMING</p>
+<h4 id="document-root"><a href="#document-root" class="headerlink" title="document_root"></a><strong>document_root</strong></h4><p>当前请求的文档根目录或别名,即配置文件中的 root 目录；</p>
+<h4 id="document-uri"><a href="#document-uri" class="headerlink" title="$document_uri"></a><strong>$document_uri</strong></h4><p>即请求的 uri；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex%3Fa%3D1" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index?a=1</a><br> $document_uri = /test/index</p>
+<h4 id="host"><a href="#host" class="headerlink" title="$host"></a><strong>$host</strong></h4><p>请求的 host， 优先级：HTTP 请求行的主机名 &gt; 请求头中的”HOST”字段 &gt; 符合请求的服务器名</p>
+<h4 id="hostname"><a href="#hostname" class="headerlink" title="$hostname"></a><strong>$hostname</strong></h4><p>请求的服务主机名</p>
+<h4 id="http-name"><a href="#http-name" class="headerlink" title="$http_name"></a><strong>$http_name</strong></h4><p>匹配任意请求头字段； 变量名中的后半部分“name”可以替换成任意请求头字段，如在配置文件中需要获取 http 请求头：“Accept-Language”，那么将“－”替换为下划线，大写字母替换为小写，形如：$http_accept_language 即可；</p>
+<h4 id="https"><a href="#https" class="headerlink" title="$https"></a><strong>$https</strong></h4><p>如果开启了 SSL 安全模式，值为“on”，否则为空字符串；</p>
+<h4 id="is-args"><a href="#is-args" class="headerlink" title="$is_args"></a><strong>$is_args</strong></h4><p>如果请求中有参数，值为“?”，否则为空字符串；</p>
+<h4 id="msec"><a href="#msec" class="headerlink" title="$msec"></a><strong>$msec</strong></h4><p>当前的 Unix 时间戳；</p>
+<h4 id="nginx-version"><a href="#nginx-version" class="headerlink" title="$nginx_version"></a><strong>$nginx_version</strong></h4><p>nginx 版本；</p>
+<h4 id="pid"><a href="#pid" class="headerlink" title="$pid"></a><strong>$pid</strong></h4><p>nginx 进程 pid</p>
+<h4 id="pipe"><a href="#pipe" class="headerlink" title="$pipe"></a><strong>$pipe</strong></h4><p>如果请求来自管道通信，值为“p”，否则为“.”</p>
+<h4 id="proxy-protocol-addr"><a href="#proxy-protocol-addr" class="headerlink" title="$proxy_protocol_addr"></a><strong>$proxy_protocol_addr</strong></h4><p>获取代理访问服务器的客户端地址，如果是直接访问，该值为空字符串。有些懵懂；</p>
+<h4 id="query-string"><a href="#query-string" class="headerlink" title="query_string"></a><strong>query_string</strong></h4><p>链接中的参数列表，同 $args;</p>
+<h4 id="realpath-root"><a href="#realpath-root" class="headerlink" title="$realpath_root"></a><strong>$realpath_root</strong></h4><p>当前请求的文档根目录或别名的真实路径，会将所有符号连接转换为真实路径;</p>
+<h4 id="remote-addr"><a href="#remote-addr" class="headerlink" title="$remote_addr"></a><strong>$remote_addr</strong></h4><p>客户端地址</p>
+<h4 id="remote-port"><a href="#remote-port" class="headerlink" title="$remote_port"></a><strong>$remote_port</strong></h4><p>客户端端口</p>
+<h4 id="remote-user"><a href="#remote-user" class="headerlink" title="$remote_user"></a><strong>$remote_user</strong></h4><p>用于 HTTP 基础认证服务的用户名;</p>
+<p>####　<strong>$request</strong></p>
+<p>HTTP 请求的方法/路径及版本；<br> 如： <a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index</a><br> $request = GET /test/index HTTP/1.1</p>
+<h4 id="request-body"><a href="#request-body" class="headerlink" title="$request_body"></a><strong>$request_body</strong></h4><p>客户端的请求主体；post 中的 body 的数据部分</p>
+<h4 id="request-completion"><a href="#request-completion" class="headerlink" title="$request_completion"></a><strong>$request_completion</strong></h4><p>如果请求成功，值为”OK”，如果请求未完成或者请求不是一个范围请求的最后一部分，则为空；</p>
+<h4 id="request-filename"><a href="#request-filename" class="headerlink" title="request_filename"></a><strong>request_filename</strong></h4><p>当前连接请求的文件路径，由 root 或 alias 指令与 URI 请求生成;</p>
+<h4 id="request-length"><a href="#request-length" class="headerlink" title="$request_length"></a><strong>$request_length</strong></h4><p>请求的长度 (包括请求的地址, http 请求头和请求主体);</p>
+<h4 id="request-method"><a href="#request-method" class="headerlink" title="$request_method"></a><strong>$request_method</strong></h4><p>HTTP 请求方法，通常为“GET”“POST”等</p>
+<h4 id="request-time"><a href="#request-time" class="headerlink" title="$request_time"></a><strong>$request_time</strong></h4><p>处理客户端请求使用的时间; 从读取客户端的第一个字节开始计时；</p>
+<h4 id="request-uri"><a href="#request-uri" class="headerlink" title="$request_uri"></a><strong>$request_uri</strong></h4><p>客户端请求的 uri；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex%3Fa%3D1%26b%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index?a=1&amp;b=200</a><br> $request_uri = /test/index?a=1&amp;b=200</p>
+<h4 id="scheme"><a href="#scheme" class="headerlink" title="$scheme"></a>$scheme</h4><p>请求使用的 Web 协议, “http” 或 “https”</p>
+<h4 id="sent-http-name"><a href="#sent-http-name" class="headerlink" title="$sent_http_name"></a>$sent_http_name</h4><p>设置任意 http 响应头字段； 变量名中的后半部分“name”可以替换成任意响应头字段，如需要设置响应头 Content-length，那么将“－”替换为下划线，大写字母替换为小写，形如：$sent_http_content_length 4096 即可；</p>
+<h4 id="server-addr"><a href="#server-addr" class="headerlink" title="$server_addr"></a><strong>$server_addr</strong></h4><p>服务器端地址；如 ： 172.27.0.15</p>
+<h4 id="server-name"><a href="#server-name" class="headerlink" title="$server_name"></a><strong>$server_name</strong></h4><p>服务器名；如 service.shiguofu.cn</p>
+<h4 id="server-port"><a href="#server-port" class="headerlink" title="$server_port"></a><strong>$server_port</strong></h4><p>服务器端口号</p>
+<h4 id="server-protocol"><a href="#server-protocol" class="headerlink" title="$server_protocol"></a><strong>$server_protocol</strong></h4><p>服务器的 HTTP 版本, 通常为 “HTTP/1.0” 或 “HTTP/1.1”</p>
+<h4 id="status"><a href="#status" class="headerlink" title="$status"></a><strong>$status</strong></h4><p>HTTP 响应代码</p>
+<h4 id="tcpinfortt-tcpinfo-rttvar-tcpinfosndcwnd-tcpinfo-rcv-space"><a href="#tcpinfortt-tcpinfo-rttvar-tcpinfosndcwnd-tcpinfo-rcv-space" class="headerlink" title="tcpinfortt,tcpinfo_rttvar, tcpinfosndcwnd,tcpinfo_rcv_space"></a><strong>tcpinfortt,tcpinfo_rttvar, tcpinfosndcwnd,tcpinfo_rcv_space</strong></h4><p>客户端 TCP 连接的具体信息</p>
+<h4 id="time-iso8601"><a href="#time-iso8601" class="headerlink" title="$time_iso8601"></a><strong>$time_iso8601</strong></h4><p>服务器时间的 ISO 8610 格式</p>
+<h4 id="time-local"><a href="#time-local" class="headerlink" title="$time_local"></a><strong>$time_local</strong></h4><p>服务器时间（LOG Format 格式）</p>
+<h4 id="uri"><a href="#uri" class="headerlink" title="$uri"></a><strong>$uri</strong></h4><p>请求中的当前 URI(不带请求参数，参数位于 $args)；</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2021/09/04/Nginx负载均衡算法/">Nginx 负载均衡算法</a>
         </h1>
         
@@ -1127,49 +1210,6 @@
 <li>父协程只是使用context通知所有的子协程，我已经不需要你了，但不会直接干涉和中断下游任务的执行，具体的操作是由子协程决定操作，因此子协程要使用select来监听ctx.Done。</li>
 <li>context是线程安全的，可以放心地在多个协程中传递使用。</li>
 </ul>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2020/05/19/leetcode两个正序数组的中位数/">Leetcode 两个正序数组的中位数</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="leetcode-两个正序数组的中位数"><a href="#leetcode-两个正序数组的中位数" class="headerlink" title="leetcode 两个正序数组的中位数"></a>leetcode 两个正序数组的中位数</h4><p>题目</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">给定两个大小为 m 和 n 的正序（从小到大）数组 nums1 和 nums2。</span><br><span class="line"></span><br><span class="line">请你找出这两个正序数组的中位数，并且要求算法的时间复杂度为 O(log(m + n))。</span><br><span class="line"></span><br><span class="line">你可以假设 nums1 和 nums2 不会同时为空。</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">示例 1:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 3]</span><br><span class="line">nums2 = [2]</span><br><span class="line"></span><br><span class="line">则中位数是 2.0</span><br><span class="line">示例 2:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 2]</span><br><span class="line">nums2 = [3, 4]</span><br><span class="line"></span><br><span class="line">则中位数是 (2 + 3)/2 = 2.5</span><br></pre></td></tr></table></figure>
-
-<ol>
-<li>这道题，感觉在于理解什么是中位数</li>
-</ol>
-<p>基本思路就是把两个数组合并，但是只需要合并到 总数/2 就可以了 后面可以忽略</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">findMedianSortedArrays</span><span class="params">(self, nums1, nums2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type nums1: List[int]</span></span><br><span class="line"><span class="string">        :type nums2: List[int]</span></span><br><span class="line"><span class="string">        :rtype: float</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        <span class="keyword">if</span> len(nums1) &lt; len(nums2):</span><br><span class="line">            nums1, nums2 = nums2, nums1</span><br><span class="line">        index1 = <span class="number">0</span></span><br><span class="line">        index2 = <span class="number">0</span></span><br><span class="line">        total = len(nums1) + len(nums2)</span><br><span class="line">        <span class="keyword">while</span> index2 &lt; len(nums2) <span class="keyword">and</span> index1 &lt;= total / <span class="number">2</span>:     <span class="comment"># 结束条件</span></span><br><span class="line">            <span class="keyword">if</span> index1 &lt; len(nums1):								<span class="comment"># 两数组等长，数组1最大的数小雨数组2最小的数，会导致index1==len(nums1) index1 out of range</span></span><br><span class="line">                <span class="keyword">if</span> nums1[index1] &gt; nums2[index2]:</span><br><span class="line">                    nums1.insert(index1, nums2[index2])</span><br><span class="line">                    index2 += <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    index1 += <span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                nums1.append(nums2[index2])			<span class="comment"># 只要把数组2append到最后</span></span><br><span class="line">                index2  += <span class="number">1</span></span><br><span class="line">                </span><br><span class="line">        <span class="keyword">if</span> total % <span class="number">2</span> == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> (nums1[int(total / <span class="number">2</span>) - <span class="number">1</span>] + nums1[int(total / <span class="number">2</span>)]) / <span class="number">2.0</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> nums1[total / <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
-
 
         
     </section>
