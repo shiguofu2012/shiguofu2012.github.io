@@ -127,6 +127,255 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/10/07/ES集群配置用户密码/">ES集群配置用户密码</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-10-07T08:57:16.000Z" itemprop="datePublished">2021-10-07</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/ElasticSearch/">ElasticSearch</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="ElastiSearch集群配置用户密码"><a href="#ElastiSearch集群配置用户密码" class="headerlink" title="ElastiSearch集群配置用户密码"></a>ElastiSearch集群配置用户密码</h3><blockquote>
+<p>ES集群配置启动成功后，默认是没有密码的，经常被内部扫出安全漏洞，存在数据泄漏及篡改的风险。</p>
+</blockquote>
+<h4 id="集群证书设置"><a href="#集群证书设置" class="headerlink" title="集群证书设置"></a>集群证书设置</h4><p>启用了x-pack模块，那么集群中的各节点之间通讯就必须安全认证。为了解决节点间通讯的认证问，我们需要制作证书。</p>
+<p>不然直接生成密码的话， 会报</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Cause: Cluster state has not been recovered yet, cannot write to the [null]index</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">elasticsearch-certutil  cert</span><br></pre></td></tr></table></figure>
+
+<p>按照提示一步一步生成elastic-certificates.p12 文件。</p>
+<h4 id="elasticsearch-yml设置"><a href="#elasticsearch-yml设置" class="headerlink" title="elasticsearch.yml设置"></a>elasticsearch.yml设置</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">xpack.security.enabled: true</span><br><span class="line">xpack.security.transport.ssl.enabled: true</span><br><span class="line">xpack.security.transport.ssl.keystore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.truststore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.verification_mode: certificate</span><br><span class="line">xpack.security.transport.ssl.keystore.path: elastic-certificates.p12</span><br><span class="line">xpack.security.transport.ssl.truststore.path: elastic-certificates.p12</span><br></pre></td></tr></table></figure>
+
+<p>将生成的证书放在es根目录的config文件夹下，如 elasticsearch/config/elastic-certificates.p12。</p>
+<p>集群中每个节点都进行同样的配置，重启所有节点。</p>
+<blockquote>
+<p>Elasticsearch 有两个级别的通信，传输通信和 http 通信。 传输协议用于 Elasticsearch 节点之间的内部通信，http 协议用于客户端到 Elasticsearch 集群的通信。<br>个人认为上面只设置了内部传输协议直接的证书，所以只用cert生成 ，没有ca生成。</p>
+<p>elasticsearch.yml设置里面也只设置了 xpack.security.transport.ssl， 没有设置xpack.security.http.ssl…</p>
+</blockquote>
+<h4 id="开始设置密码"><a href="#开始设置密码" class="headerlink" title="开始设置密码"></a>开始设置密码</h4><p>在任意节点中执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">elasticsearch-setup-passwords interactive</span><br></pre></td></tr></table></figure>
+
+<p>按照提示一步一步输入密码即可设置成功。</p>
+<h4 id="验证密码"><a href="#验证密码" class="headerlink" title="验证密码"></a>验证密码</h4><p>ES验证当然是用curl测试</p>
+<p>输入如下命令，账号密码替换为自己的，正确输出如下信息即设置成功。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl localhost:9200/_cat/nodes --user elastic:xxxxx</span><br><span class="line"></span><br><span class="line">10.10.x.x 17 99 0 0.06 0.09 0.12 xxxx * es-node3</span><br><span class="line">10.10.x.x 35 99 0 0.06 0.09 0.12 xxxx - es-node2</span><br><span class="line">10.10.x.x 40 99 0 0.06 0.09 0.12 xxxx - es-node1</span><br></pre></td></tr></table></figure>
+
+<h4 id="ES修改密码"><a href="#ES修改密码" class="headerlink" title="ES修改密码"></a>ES修改密码</h4><ol>
+<li>使用curl命令修改密码</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl -XPUT -u elastic:xxx http://localhost:9200/_xpack/security/user/elastic/_password -H </span><br><span class="line">&quot;Content-Type: application/json&quot; -d &apos;</span><br><span class="line">&#123;</span><br><span class="line">  &quot;password&quot;: &quot;your passwd&quot;</span><br><span class="line">&#125;&apos;</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>密码忘记</li>
+</ol>
+<p>进入es任意节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">/bin/elasticsearch-users useradd misspasswd -r superuser</span><br><span class="line">Enter new password: </span><br><span class="line">ERROR: Invalid password...passwords must be at least [6] characters long</span><br><span class="line">[root@cfeeab4bb0eb elasticsearch]# ./bin/elasticsearch-users useradd misspasswd -r superuser</span><br><span class="line">Enter new password: </span><br><span class="line">Retype new password:</span><br></pre></td></tr></table></figure>
+
+<p>然后使用新建的用户执行1操作即可修改密码.</p>
+<h4 id="es-docker-compose配置"><a href="#es-docker-compose配置" class="headerlink" title="es docker-compose配置"></a>es docker-compose配置</h4><p><a href="https://github.com/shiguofu2012/scripts/blob/master/docker-compose/es.yml" target="_blank" rel="noopener">https://github.com/shiguofu2012/scripts/blob/master/docker-compose/es.yml</a></p>
+<p>运行准备：</p>
+<ol>
+<li>创建目录，配置文件证书文件都是在宿主机器上的/root/data/es-7.5.1-{1,2,3}目录下</li>
+<li>证书文件(证书生成见上文)/配置文件</li>
+</ol>
+<p>配置文件1</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">cluster.name: test</span><br><span class="line">node.name: es-node3</span><br><span class="line"># network.bind_host: 0.0.0.0</span><br><span class="line">network.host: 0.0.0.0</span><br><span class="line"># network.publish_host: elasticsearch03</span><br><span class="line">http.port: 9200</span><br><span class="line">transport.tcp.port: 9300</span><br><span class="line">http.cors.enabled: true</span><br><span class="line">http.cors.allow-origin: &quot;*&quot;</span><br><span class="line">node.master: true</span><br><span class="line">node.data: true  </span><br><span class="line">cluster.initial_master_nodes: [&quot;es-node1&quot;, &quot;es-node2&quot;, &quot;es-node3&quot;]</span><br><span class="line"># 加host</span><br><span class="line">discovery.seed_hosts: [&quot;elasticsearch01&quot;,&quot;elasticsearch03&quot;, &quot;elasticsearch02&quot;] </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">xpack.security.enabled: true          </span><br><span class="line">xpack.security.transport.ssl.enabled: true</span><br><span class="line">xpack.security.transport.ssl.keystore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.truststore.type: PKCS12                                                                                              </span><br><span class="line">xpack.security.transport.ssl.verification_mode: certificate</span><br><span class="line">xpack.security.transport.ssl.keystore.path: elastic-certificates.p12</span><br><span class="line">xpack.security.transport.ssl.truststore.path: elastic-certificates.p12</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line">version: &apos;2.2&apos;</span><br><span class="line">services:</span><br><span class="line">  elasticsearch01:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es01</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment:  放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 9200:9200</span><br><span class="line">      - 9201:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /root/data/es-7.5.1-1:/usr/share/elasticsearch/data</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-1/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /root/data/es-7.5.1-1/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line"></span><br><span class="line">  elasticsearch02:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es02</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment: 放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 9300:9200</span><br><span class="line">      - 9301:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-2:/usr/share/elasticsearch/data</span><br><span class="line">      - /root/data/es-7.5.1-2/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /root/data/es-7.5.1-2/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line">  elasticsearch03:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es03</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment:  放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 6666:9200</span><br><span class="line">      - 6667:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /root/data/es-7.5.1-3:/usr/share/elasticsearch/data</span><br><span class="line">      - /root/data/es-7.5.1-3/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-3/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  kibana:</span><br><span class="line">    image: kibana:7.10.1</span><br><span class="line">    container_name: kibana</span><br><span class="line">    links:</span><br><span class="line">      - elasticsearch01</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    environment:</span><br><span class="line">      - ELASTICSEARCH_HOSTS=&quot;http://elasticsearch01:9200&quot;</span><br><span class="line">      - ELASTICSEARCH_USERNAME=&quot;elastic&quot;</span><br><span class="line">      - ELASTICSEARCH_PASSWORD=&quot;aeQwQKM0N0nY&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - elasticsearch01</span><br><span class="line">    ports:</span><br><span class="line">      - 5601:5601</span><br><span class="line"></span><br><span class="line">networks:</span><br><span class="line">  shiguofu_net:</span><br><span class="line">    driver: bridge</span><br><span class="line">    ipam:</span><br><span class="line">      config:</span><br><span class="line">        - subnet: 10.10.2.0/24</span><br></pre></td></tr></table></figure>
+
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2021/09/20/Nginx内置变量/">Nginx 负载均衡算法</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-09-20T10:25:01.000Z" itemprop="datePublished">2021-09-20</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Load-Balance/">Load Balance</a>, <a class="article-tag-link" href="/tags/Nginx/">Nginx</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="nginx-内置变量"><a href="#nginx-内置变量" class="headerlink" title="nginx 内置变量"></a>nginx 内置变量</h3><p>内置变量存放在 ngx_http_core_module 模块中，变量的命名方式和 apache 服务器变量是一致的。总而言之，这些变量代表着客户端请求头的内容，例如httpuseragent,http_cookie, 等等。</p>
+<p>下面是 nginx 支持的所有内置变量：</p>
+<h4 id="arg-name"><a href="#arg-name" class="headerlink" title="$arg_name"></a><strong>$arg_name</strong></h4><p>这个变量是获取链接中参数名为 <strong>name</strong> 对应的值；<br> 如请求链接: <a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%3Fname%3D100%26a%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test?name=100&amp;a=200</a><br> argn​ame=′100′,arg_a = ‘200’</p>
+<h4 id="args"><a href="#args" class="headerlink" title="$args"></a>$args</h4><p>这个变量获取链接中所有的参数，即链接问号后面的所有的东西；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%3Fname%3D100%26a%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test?name=100&amp;a=200</a><br> $args = ‘name=100&amp;a=200’</p>
+<h4 id="binary-remote-addr"><a href="#binary-remote-addr" class="headerlink" title="$binary_remote_addr"></a><strong>$binary_remote_addr</strong></h4><p>客户端的二进制的 ip 地址；</p>
+<h4 id="body-bytes-sent"><a href="#body-bytes-sent" class="headerlink" title="$body_bytes_sent"></a><strong>$body_bytes_sent</strong></h4><p>传输给客户端的字节数，响应头不计算在内；</p>
+<h4 id="bytes-sent"><a href="#bytes-sent" class="headerlink" title="$bytes_sent"></a><strong>$bytes_sent</strong></h4><p>nginx 返回给客户端的字节数，包括响应头和响应体;</p>
+<h4 id="connection"><a href="#connection" class="headerlink" title="$connection"></a><strong>$connection</strong></h4><p>TCP 连接的序列号，并不是一次 http 请求就会更滑一个序列号，http 有 keep-alive 机制，一个序列号会维持</p>
+<h4 id="connection-requests"><a href="#connection-requests" class="headerlink" title="connection_requests"></a><strong>connection_requests</strong></h4><p>TCP 连接当前的请求数量，服务处理请求的个数，重启后重置为 0</p>
+<h4 id="content-length"><a href="#content-length" class="headerlink" title="$content_length"></a><strong>$content_length</strong></h4><p>“Content-Length” 请求头字段， 客户端请求的头部中的 content-length 值；</p>
+<h4 id="content-type"><a href="#content-type" class="headerlink" title="$content_type"></a><strong>$content_type</strong></h4><p>“Content-Type” 请求头字段</p>
+<h4 id="cookie-name"><a href="#cookie-name" class="headerlink" title="$cookie_name"></a><strong>$cookie_name</strong></h4><p>获取 cookie 名称为 name 的 cookie 值；<br> 如 cookie：PHP_VERSION: 1.0; NAME:XIAOMING;….<br> $cookie_NAME = ‘XIAOMING</p>
+<h4 id="document-root"><a href="#document-root" class="headerlink" title="document_root"></a><strong>document_root</strong></h4><p>当前请求的文档根目录或别名,即配置文件中的 root 目录；</p>
+<h4 id="document-uri"><a href="#document-uri" class="headerlink" title="$document_uri"></a><strong>$document_uri</strong></h4><p>即请求的 uri；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex%3Fa%3D1" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index?a=1</a><br> $document_uri = /test/index</p>
+<h4 id="host"><a href="#host" class="headerlink" title="$host"></a><strong>$host</strong></h4><p>请求的 host， 优先级：HTTP 请求行的主机名 &gt; 请求头中的”HOST”字段 &gt; 符合请求的服务器名</p>
+<h4 id="hostname"><a href="#hostname" class="headerlink" title="$hostname"></a><strong>$hostname</strong></h4><p>请求的服务主机名</p>
+<h4 id="http-name"><a href="#http-name" class="headerlink" title="$http_name"></a><strong>$http_name</strong></h4><p>匹配任意请求头字段； 变量名中的后半部分“name”可以替换成任意请求头字段，如在配置文件中需要获取 http 请求头：“Accept-Language”，那么将“－”替换为下划线，大写字母替换为小写，形如：$http_accept_language 即可；</p>
+<h4 id="https"><a href="#https" class="headerlink" title="$https"></a><strong>$https</strong></h4><p>如果开启了 SSL 安全模式，值为“on”，否则为空字符串；</p>
+<h4 id="is-args"><a href="#is-args" class="headerlink" title="$is_args"></a><strong>$is_args</strong></h4><p>如果请求中有参数，值为“?”，否则为空字符串；</p>
+<h4 id="msec"><a href="#msec" class="headerlink" title="$msec"></a><strong>$msec</strong></h4><p>当前的 Unix 时间戳；</p>
+<h4 id="nginx-version"><a href="#nginx-version" class="headerlink" title="$nginx_version"></a><strong>$nginx_version</strong></h4><p>nginx 版本；</p>
+<h4 id="pid"><a href="#pid" class="headerlink" title="$pid"></a><strong>$pid</strong></h4><p>nginx 进程 pid</p>
+<h4 id="pipe"><a href="#pipe" class="headerlink" title="$pipe"></a><strong>$pipe</strong></h4><p>如果请求来自管道通信，值为“p”，否则为“.”</p>
+<h4 id="proxy-protocol-addr"><a href="#proxy-protocol-addr" class="headerlink" title="$proxy_protocol_addr"></a><strong>$proxy_protocol_addr</strong></h4><p>获取代理访问服务器的客户端地址，如果是直接访问，该值为空字符串。有些懵懂；</p>
+<h4 id="query-string"><a href="#query-string" class="headerlink" title="query_string"></a><strong>query_string</strong></h4><p>链接中的参数列表，同 $args;</p>
+<h4 id="realpath-root"><a href="#realpath-root" class="headerlink" title="$realpath_root"></a><strong>$realpath_root</strong></h4><p>当前请求的文档根目录或别名的真实路径，会将所有符号连接转换为真实路径;</p>
+<h4 id="remote-addr"><a href="#remote-addr" class="headerlink" title="$remote_addr"></a><strong>$remote_addr</strong></h4><p>客户端地址</p>
+<h4 id="remote-port"><a href="#remote-port" class="headerlink" title="$remote_port"></a><strong>$remote_port</strong></h4><p>客户端端口</p>
+<h4 id="remote-user"><a href="#remote-user" class="headerlink" title="$remote_user"></a><strong>$remote_user</strong></h4><p>用于 HTTP 基础认证服务的用户名;</p>
+<p>####　<strong>$request</strong></p>
+<p>HTTP 请求的方法/路径及版本；<br> 如： <a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index</a><br> $request = GET /test/index HTTP/1.1</p>
+<h4 id="request-body"><a href="#request-body" class="headerlink" title="$request_body"></a><strong>$request_body</strong></h4><p>客户端的请求主体；post 中的 body 的数据部分</p>
+<h4 id="request-completion"><a href="#request-completion" class="headerlink" title="$request_completion"></a><strong>$request_completion</strong></h4><p>如果请求成功，值为”OK”，如果请求未完成或者请求不是一个范围请求的最后一部分，则为空；</p>
+<h4 id="request-filename"><a href="#request-filename" class="headerlink" title="request_filename"></a><strong>request_filename</strong></h4><p>当前连接请求的文件路径，由 root 或 alias 指令与 URI 请求生成;</p>
+<h4 id="request-length"><a href="#request-length" class="headerlink" title="$request_length"></a><strong>$request_length</strong></h4><p>请求的长度 (包括请求的地址, http 请求头和请求主体);</p>
+<h4 id="request-method"><a href="#request-method" class="headerlink" title="$request_method"></a><strong>$request_method</strong></h4><p>HTTP 请求方法，通常为“GET”“POST”等</p>
+<h4 id="request-time"><a href="#request-time" class="headerlink" title="$request_time"></a><strong>$request_time</strong></h4><p>处理客户端请求使用的时间; 从读取客户端的第一个字节开始计时；</p>
+<h4 id="request-uri"><a href="#request-uri" class="headerlink" title="$request_uri"></a><strong>$request_uri</strong></h4><p>客户端请求的 uri；<br> 如：<a href="https://link.ld246.com/forward?goto=http%3A%2F%2Fservice.shiguofu.cn%2Ftest%2Findex%3Fa%3D1%26b%3D200" target="_blank" rel="noopener">http://service.shiguofu.cn/test/index?a=1&amp;b=200</a><br> $request_uri = /test/index?a=1&amp;b=200</p>
+<h4 id="scheme"><a href="#scheme" class="headerlink" title="$scheme"></a>$scheme</h4><p>请求使用的 Web 协议, “http” 或 “https”</p>
+<h4 id="sent-http-name"><a href="#sent-http-name" class="headerlink" title="$sent_http_name"></a>$sent_http_name</h4><p>设置任意 http 响应头字段； 变量名中的后半部分“name”可以替换成任意响应头字段，如需要设置响应头 Content-length，那么将“－”替换为下划线，大写字母替换为小写，形如：$sent_http_content_length 4096 即可；</p>
+<h4 id="server-addr"><a href="#server-addr" class="headerlink" title="$server_addr"></a><strong>$server_addr</strong></h4><p>服务器端地址；如 ： 172.27.0.15</p>
+<h4 id="server-name"><a href="#server-name" class="headerlink" title="$server_name"></a><strong>$server_name</strong></h4><p>服务器名；如 service.shiguofu.cn</p>
+<h4 id="server-port"><a href="#server-port" class="headerlink" title="$server_port"></a><strong>$server_port</strong></h4><p>服务器端口号</p>
+<h4 id="server-protocol"><a href="#server-protocol" class="headerlink" title="$server_protocol"></a><strong>$server_protocol</strong></h4><p>服务器的 HTTP 版本, 通常为 “HTTP/1.0” 或 “HTTP/1.1”</p>
+<h4 id="status"><a href="#status" class="headerlink" title="$status"></a><strong>$status</strong></h4><p>HTTP 响应代码</p>
+<h4 id="tcpinfortt-tcpinfo-rttvar-tcpinfosndcwnd-tcpinfo-rcv-space"><a href="#tcpinfortt-tcpinfo-rttvar-tcpinfosndcwnd-tcpinfo-rcv-space" class="headerlink" title="tcpinfortt,tcpinfo_rttvar, tcpinfosndcwnd,tcpinfo_rcv_space"></a><strong>tcpinfortt,tcpinfo_rttvar, tcpinfosndcwnd,tcpinfo_rcv_space</strong></h4><p>客户端 TCP 连接的具体信息</p>
+<h4 id="time-iso8601"><a href="#time-iso8601" class="headerlink" title="$time_iso8601"></a><strong>$time_iso8601</strong></h4><p>服务器时间的 ISO 8610 格式</p>
+<h4 id="time-local"><a href="#time-local" class="headerlink" title="$time_local"></a><strong>$time_local</strong></h4><p>服务器时间（LOG Format 格式）</p>
+<h4 id="uri"><a href="#uri" class="headerlink" title="$uri"></a><strong>$uri</strong></h4><p>请求中的当前 URI(不带请求参数，参数位于 $args)；</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2021/09/04/Nginx负载均衡算法/">Nginx 负载均衡算法</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-09-04T07:25:01.000Z" itemprop="datePublished">2021-09-04</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Load-Balance/">Load Balance</a>, <a class="article-tag-link" href="/tags/Nginx/">Nginx</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <br>
+
+<blockquote>
+<p>Nginx 是一个高性能的 HTTP 和反向代理服务，因它的稳定性、丰富的功能集、示例配置文件和低系统资源的消耗而闻名。</p>
+<p>其特点是占有内存少，并发能力强，事实上 nginx 的并发能力确实在同类型的网页服务器中表现较好，中国大陆使用 nginx 网站用户有：百度、京东、新浪、网易、腾讯、淘宝等。</p>
+<p>当 Nginx 作为代理服务，后端可支持的应用也是多种类型的，比如基于 python 的 uwsgi、php 的 fastcgi 以及 TCP、HTTP、UDP 等协议；</p>
+</blockquote>
+<h2 id="1-配置-NGINX-代理后端应用"><a href="#1-配置-NGINX-代理后端应用" class="headerlink" title="1 配置 NGINX 代理后端应用"></a>1 配置 NGINX 代理后端应用</h2><h3 id="1-1-代理-uwsgi"><a href="#1-1-代理-uwsgi" class="headerlink" title="1.1 代理 uwsgi"></a>1.1 代理 uwsgi</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      uwsgi_pass service;</span><br><span class="line">      include uwsgi_params;   #uwsgi参数表，在/etc/nginx/目录</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上配置表示，主要使用 nginx 的指令 <strong>uwsgi_pass</strong>，使用 Nginx 的 uwsgi 模块将匹配到 location 的路径转发到有 <strong>upstream</strong> 块级指令代理的 uwsgi 服务，这里默认是轮询的方式；<br> 所有的 uwsgi 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；</p>
+<h3 id="1-2-代理-HTTP"><a href="#1-2-代理-HTTP" class="headerlink" title="1.2 代理 HTTP"></a>1.2 代理 HTTP</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      proxy_pass http://service;</span><br><span class="line">      include proxy_params;      </span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用 Nginx 的 <strong>porxy_pass</strong> 指令，将匹配 location 的路径的请求转发到 <strong>upstream</strong> 块级指令代理的 HTTP 服务，同样采用轮询的方式；<br> 所有的 HTTP 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；<br> 不同的地方在于 proxy_pass 要加上 http，因为 upstream 并没有指定协议；</p>
+<h3 id="1-3-代理-fastcgi-协议"><a href="#1-3-代理-fastcgi-协议" class="headerlink" title="1.3 代理 fastcgi 协议"></a>1.3 代理 fastcgi 协议</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      fastcgi_pass http://service;</span><br><span class="line">      include fastcgi_params;       #fastcgi参数表，在/etc/nginx/目录</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用 Nginx 的 <strong>fastcgi_pass</strong> 指令，将匹配 location 的路径的请求转发到 <strong>upstream</strong> 块级指令代理的 HTTP 服务，同样采用轮询的方式；<br> 所有的 fastcgi 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；</p>
+<h3 id="1-4-代理-TCP"><a href="#1-4-代理-TCP" class="headerlink" title="1.4 代理 TCP"></a>1.4 代理 TCP</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">stream &#123;</span><br><span class="line">   upstream mysql_backend&#123;</span><br><span class="line">      server localhost:3306;</span><br><span class="line">	   server mysql.shiguofu.cn:3306;</span><br><span class="line">   &#125;</span><br><span class="line">   server&#123;</span><br><span class="line">     listen 3307;</span><br><span class="line">     proxy_pass mysql_backend;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用 Nginx 的 <strong>stream</strong> 块指令，它与 <strong>http</strong> 指令同一级别，写的时候要注意，在 ubuntu 系统中，http 块写在/etc/nginx/nginx.conf 中；因此笔者当时在/etc/nginx/nginx.conf 中添加的这段配置；</p>
+<p>访问服务器的 3307 端口，测试 OK</p>
+<blockquote>
+<p>root@VM-0-15-ubuntu:/etc/nginx# mysql -h 127.0.0.1 -P 3307 -uroot -p<br>Enter password:<br>Welcome to the MySQL monitor. Commands end with ; or \g.<br>Your MySQL connection id is 27868<br>Server version: 5.7.23-0ubuntu0.16.04.1-log (Ubuntu)</p>
+<p>Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.</p>
+<p>Oracle is a registered trademark of Oracle Corporation and/or its<br>affiliates. Other names may be trademarks of their respective<br>owners.</p>
+<p>Type ‘help;’ or ‘\h’ for help. Type ‘\c’ to clear the current input statement.</p>
+<p>mysql&gt;</p>
+</blockquote>
+<h2 id="2-Nginx-负载均衡"><a href="#2-Nginx-负载均衡" class="headerlink" title="2 Nginx 负载均衡"></a>2 Nginx 负载均衡</h2><p>Nginx 能够广泛使用，不仅是因为它可以作为代理服务，它还提供了适应于不同业务的负载均衡算法以及判断目标服务的可用性等强大的功能；</p>
+<h3 id="2-1-轮询算法"><a href="#2-1-轮询算法" class="headerlink" title="2.1 轮询算法"></a>2.1 轮询算法</h3><p>最简单的算法，也是 Nginx 默认的负载均衡算法；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888 weight=1 max_fails=3 fail_timeout=30;</span><br><span class="line">   server 192.168.0.2:8889 weight=2;</span><br><span class="line">   server tbk.shiguofu.cn:80 backup;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      proxy_pass http://service;</span><br><span class="line">      include proxy_params;      </span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上配置是在轮询的基础上，增加了权重的配置，在上面示例中，Nginx 会将三个请求中的两个分发到 8889 端口对应的服务，将另一个请求分发到本地的 8888 端口的服务，并将将 tbk.shiguofu.cn 上的服务作为备用，当分发请求失败会启用备份服务；</p>
+<ol>
+<li>使用 Nginx 的指令 <strong>weight</strong> 指令为轮询的 service 配置权重；</li>
+<li>max_fails 与 fail_timtou 为服务的高可用配置；表示在 30 秒内如果有 3 个失败的请求，则认为该服务已经宕掉，在这 30 秒结束之前不会有新的请求会发送到对应的服务上；等这 30 秒结束后，Nginx 会尝试发送一个新的请求到该服务，如果还是失败，则等待 30 秒…以此循环；</li>
+</ol>
+<h3 id="2-2-最少连接数"><a href="#2-2-最少连接数" class="headerlink" title="2.2 最少连接数"></a>2.2 最少连接数</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   least_conn;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面的 <strong>least_conn</strong> 指令为所负载的应用服务指定采用最少连接数负载均衡；<br> 它会将访问请求分发到 upstream 所代理的服务中，当前打开连接数最少的应用服务器；它同时支持轮询中的 weight、max_fails、fail_timeout 选项，来决定给性能更好的应用服务器分配更多的访问请求；</p>
+<h3 id="2-3-最短响应时间"><a href="#2-3-最短响应时间" class="headerlink" title="2.3 最短响应时间"></a>2.3 最短响应时间</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   least_time;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该指令 <strong>least_time</strong> 仅仅在 NGINX PLUS 版本中支持，不多说。</p>
+<h3 id="2-4-散列算法"><a href="#2-4-散列算法" class="headerlink" title="2.4 散列算法"></a>2.4 散列算法</h3><p>分为通用散列算法与 ip 散列算法；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   hash $host;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过 <strong>hash</strong> 指令实现，根据请求或运行时提供的文本、变量或者其他变量的组合生成散列值；<br> 一般情况， 在需要对访问请求进行负载可控，或将访问请求负载到已经有数据缓存的应用服务的场景下，该算法会非常有用；<br> 需要注意的是，在 upstream 中有应用服务的加入或者删除时，会重新计算散列值进行分发；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   ip_hash;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>指令 <strong>ip_hash</strong> 实现，通过计算客服端的 ip 地址来生成散列值。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2021/08/03/Goroutine 在项目中的实践/">Goroutine 在项目中的实践</a>
         </h1>
         
@@ -956,215 +1205,6 @@
 </article>
 
 
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2021/01/03/Golang-Context详解/">Golang context 源码分析</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2021-01-03T15:00:00.000Z" itemprop="datePublished">2021-01-03</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/Golang/">Golang</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <p>一般接触新东西都会有三问(what/why/how),我们也从这几个角度看下golang context。</p>
-<h3 id="WHAT-IS-CONTEXT"><a href="#WHAT-IS-CONTEXT" class="headerlink" title="WHAT IS CONTEXT"></a>WHAT IS CONTEXT</h3><p>Goroutine和Channel是go语言的特色，并发编程会使用协程来处理工作，通道用来协程之间的通信。主协程创建子协程，子协程再创建子协程，就会形成一个协程树状结构，协程之间可以采用通道来进行通信。<br>每个Goroutine在执行之前，都要先知道程序当前的执行状态，通常将这些执行状态都会封装Context变量中，传递给要执行的Goroutine中。比如在网络编程中，处理一个网络Request时，我们可能需要开启不同的Goroutine来获取数据与逻辑处理。而这些Goroutine可能需要共享Request的一些信息；同时当Request异常、超时或者被取消的时候，所有从这个Request创建的所有Goroutine都应该被结束。</p>
-<h3 id="WHY-CONTEXT"><a href="#WHY-CONTEXT" class="headerlink" title="WHY CONTEXT"></a>WHY CONTEXT</h3><p>上面我们说过，由于异常、超时或者被取消的情况，都应该结束该Request创建的所有Goroutine。假如不用context，我们看怎么去控制协程树。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> services</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"time"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">StartWork</span><span class="params">()</span></span> &#123;</span><br><span class="line">	data := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">10</span>)</span><br><span class="line">	done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;) <span class="comment">// 使用一个chan来控制协程的退出</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">defer</span> <span class="built_in">close</span>(data)</span><br><span class="line">	<span class="comment">// consumer</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> &#123;</span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> &lt;-done:</span><br><span class="line">				fmt.Println(<span class="string">"child process interrupt..."</span>)</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				fmt.Printf(<span class="string">"send message: %d\n"</span>, &lt;-data)</span><br><span class="line">				time.Sleep(time.Second * <span class="number">1</span>)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// producer</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		data &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second)</span><br><span class="line">	<span class="comment">// 退出协程</span></span><br><span class="line">	<span class="built_in">close</span>(done)</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">	fmt.Println(<span class="string">"main process exit!"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>子协程运行着任务，如果主协程需要在某个时刻发送消息通知子协程中断任务退出，那么就可以让子协程监听这个done channel，一旦主协程关闭done channel，那么子协程就可以推出了，这样就实现了主协程通知子协程的需求。这种方式运行良好，但是这也是有限的。<br>考虑这种情况：如果主协程中有多个任务1, 2, …n，主协程对这些任务有时间限制；而任务1又有多个子任务1, 2, …，k, 任务1对这些子任务也有自己的时间控制，那么这些子任务既要感知主协程的取消信号，也需要感知任务1的取消信号。<br>如果使用done channel的用法，这个时候需要定义两个done channel，子任务们需要同时监听这两个done channel,这样也可以正常work。但是如果层级更深，如果这些子任务还有子任务，那么使用done channel的方式将会变得非常繁琐且混乱。<br>这个时候 context出场了。</p>
-<h3 id="context-interface"><a href="#context-interface" class="headerlink" title="context interface"></a>context interface</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">    Err() error</span><br><span class="line">    Value(key <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>context包含四个方法</p>
-<ul>
-<li>Deadline 返回绑定当前context的任务执行的截止时间，如果没有截止时间，则ok==false</li>
-<li>Done 该函数返回一个只读的chan 数据是空结构体，类似我们上面的done，控制协程的退出</li>
-<li>Err 如果协程退出，该函数返回退出的原因，被取消或者执行超时等错误</li>
-<li>Value 获取context中传递的值</li>
-</ul>
-<p>可以看到Done方法返回的chan正是用来传递结束信号以抢占并中断当前任务的；Deadline方法用来表示gorotine是否在指定时间被取消；Err方法是用来解释goroutine被取消的原因；而Value则用于获取特定于当前任务的数据。<br>而context所包含的额外信息键值对是如何存储的呢？其实可以想象一颗树，树的每个节点可能携带一组键值对,如果当前节点上无法找到key所对应的值，就会向上去父节点里找，直到根节点，具体后面会说到。</p>
-<p>下面我们看下context的两个比较常用的实现，valueCtx/cancelCtx</p>
-<h4 id="valueCtx"><a href="#valueCtx" class="headerlink" title="valueCtx"></a>valueCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> valueCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    key, val <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>结构比较简单就是增加了key/val字段存储键值对<br>WithValue用以向其中存储键值对</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key, val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">Context</span></span> &#123;</span><br><span class="line">    <span class="keyword">if</span> key == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"nil key"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> !reflect.TypeOf(key).Comparable() &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"key is not comparable"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> &amp;valueCtx&#123;parent, key, val&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这里添加键值对不是直接在原context结构体上直接添加，而是重新创建一个新的valueCtx节点，作为原ctx的子节点，并将键值对添加在子节点上，由此形成一条链表。获取value就是从这条链表上尾部向前搜寻(代码如下)：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *valueCtx)</span> <span class="title">Value</span><span class="params">(key <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">    <span class="keyword">if</span> c.key == key &#123;</span><br><span class="line">        <span class="keyword">return</span> c.val</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> c.Context.Value(key)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>valueCtx的增加值与获取值的过程如下：<br>With就是往链表的尾部增加节点，value就是从尾部开始获取对应的值，找到就退出；否则找到头部返回空.</p>
-<p><img src="/2021/01/03/Golang-Context详解/1607008927_6_w733_h99.png" alt="enter image description here"></p>
-<h4 id="cancelCtx"><a href="#cancelCtx" class="headerlink" title="cancelCtx"></a>cancelCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> canceler <span class="keyword">interface</span> &#123;</span><br><span class="line">    cancel(removeFromParent <span class="keyword">bool</span>, err error)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> cancelCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    mu       sync.Mutex            <span class="comment">// protects following fields</span></span><br><span class="line">    done     <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;         <span class="comment">// created lazily, closed by first cancel call</span></span><br><span class="line">    children <span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125; <span class="comment">// set to nil by the first cancel call</span></span><br><span class="line">    err      error                 <span class="comment">// set to non-nil by the first cancel call</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>cancelCtx是一个可以取消的 Context，实现了 canceler 接口。它直接将接口 Context 作为它的一个匿名字段，这样，它就可以被看成一个 Context。done是一个空结构体类型的channel，用来传递关闭信号，在协程中一般结合select来监听父协程退出信号；children是一个map，存储了所有可取消context的子节点，这样任意层级的context取消，都会给所有子context发送取消信号；err用于存储错误信息表示任务结束的原因。<br>先看下Done方法:</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">Done</span><span class="params">()</span> &lt;-<span class="title">chan</span> <span class="title">struct</span></span>&#123;&#125; &#123;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">    d := c.done</span><br><span class="line">    c.mu.Unlock()</span><br><span class="line">    <span class="keyword">return</span> d</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>c.done懒汉式创建，调用Done方法才会创建。返回一个只读的chan,一般结合select监听。一旦取消，立马可读。<br>重点看下cancel方法</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">cancel</span><span class="params">(removeFromParent <span class="keyword">bool</span>, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 必须要传 err</span></span><br><span class="line">    <span class="keyword">if</span> err == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"context: internal error: missing cancel error"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.err != <span class="literal">nil</span> &#123;</span><br><span class="line">        c.mu.Unlock()</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// 已经被其他协程取消</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 给 err 字段赋值</span></span><br><span class="line">    c.err = err</span><br><span class="line">    <span class="comment">// 关闭 channel，通知其他协程</span></span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = closedchan</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="built_in">close</span>(c.done)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 遍历它的所有子节点</span></span><br><span class="line">    <span class="keyword">for</span> child := <span class="keyword">range</span> c.children &#123;</span><br><span class="line">        <span class="comment">// 递归地取消所有子节点</span></span><br><span class="line">        child.cancel(<span class="literal">false</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将子节点置空</span></span><br><span class="line">    c.children = <span class="literal">nil</span></span><br><span class="line">    c.mu.Unlock()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> removeFromParent &#123;</span><br><span class="line">        <span class="comment">// 从父节点中移除自己 </span></span><br><span class="line">        removeChild(c.Context, c)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>总体来看，cancel() 方法的功能就是关闭 channel：c.done；递归地取消所有的子节点；将自己从父节点树中摘掉。通过关闭 channel，goroutine 这边接收取消信号的方式就是 select 语句中的读 ctx.Done 可读，执行相应的退出函数。<br>这里有个比较巧妙的地方，调用子节点 cancel 方法的时候，传入的第一个参数是 false，最终子节点是没有调用removeChild，把自己从父节点移除。<br>移除的操作很简单，找到最近的可取消的祖先节点，将自己从其map中删除。最关键的一行：delete(p.children, child)。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">removeChild</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 查找最近的可取消节点</span></span><br><span class="line">    p, ok := parentCancelCtx(parent)</span><br><span class="line">    <span class="keyword">if</span> !ok &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> p.children != <span class="literal">nil</span> &#123;</span><br><span class="line">         <span class="comment">// 从最近的祖先节点的map中移除自己</span></span><br><span class="line">        <span class="built_in">delete</span>(p.children, child)</span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Unlock()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>那什么时候需要移除，什么时候不需要移除呢？<br>我们先来看下创建一个可取消的context。<br>WithCancel函数创建一个可取消的context，即cancelCtx类型的context,传入一个父context，返回context和CancelFunc，调用CancelFunc即可触发cancel操作。直接看源码：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> CancelFunc <span class="function"><span class="keyword">func</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span> &#123;</span><br><span class="line">    c := newCancelCtx(parent)</span><br><span class="line">    propagateCancel(parent, &amp;c)</span><br><span class="line">    <span class="keyword">return</span> &amp;c, <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; c.cancel(<span class="literal">true</span>, Canceled) &#125;  <span class="comment">// 这里cancel传入了true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">newCancelCtx</span><span class="params">(parent Context)</span> <span class="title">cancelCtx</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> cancelCtx&#123;Context: parent&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，只有在使用WithCancel创建context的时候，返回的cancelFunc会传入true。这样当调用cancelFunc 时，会将这个 可取消的context从它的父节点里移除，因为父节点可能有很多子节点，取消之后要和父节点断绝关系，对其他没影响。而对于该context的所有子节点都会因为该节点的cancelFunc调用c.children = nil而化为灰烬，没有必要再一个一个移除。</p>
-<p><img src="/2021/01/03/Golang-Context详解/1607065426_62_w865_h334.png" alt="enter image description here"></p>
-<p>如上左图，代表一棵 context 树，当然也可以看做是一个协程树。当调用左图子context的cancel 方法后，该 context会依次调用children中的cancel的方法，此时子context不会移除自己；该context将自己从它的父 context中去除掉了：从children中delete，实线箭头变成了虚线。且虚线圈框出来的 context 都被取消了，圈内的 context间的父子关系都被取消掉了。<br>再重点看propagateCancel()：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">propagateCancel</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 父节点是个空节点</span></span><br><span class="line">    <span class="keyword">if</span> parent.Done() == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// parent is never canceled</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 找到可以取消的父 context</span></span><br><span class="line">    <span class="keyword">if</span> p, ok := parentCancelCtx(parent); ok &#123;</span><br><span class="line">        p.mu.Lock()</span><br><span class="line">        <span class="keyword">if</span> p.err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点已经被取消了，本节点（子节点）也要取消</span></span><br><span class="line">            child.cancel(<span class="literal">false</span>, p.err)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点未取消</span></span><br><span class="line">            <span class="keyword">if</span> p.children == <span class="literal">nil</span> &#123;</span><br><span class="line">                p.children = <span class="built_in">make</span>(<span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// "挂到"父节点上</span></span><br><span class="line">            p.children[child] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">        p.mu.Unlock()</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 如果没有找到可取消的父 context。新启动一个协程监控父节点或子节点取消信号</span></span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">select</span> &#123;</span><br><span class="line">            <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">                child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">            <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>上面这段代码的功能就是向上寻找可以“依靠”的“可取消”的context，并且“挂靠”上去。这样，调用上层cancel方法的时候，就可以层层传递，将那些挂靠的子context同时“取消”。<br>这里也有一个比较巧妙的设计，就是else的情况。起初我一直不理解，怎么可能会有else的情况发生，parent.Done()不为空，怎么会找不到可取消的父节点。这里要翻看parentCancelCtx的源码了。。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parentCancelCtx</span><span class="params">(parent Context)</span> <span class="params">(*cancelCtx, <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> &#123;</span><br><span class="line">        <span class="keyword">switch</span> c := parent.(<span class="keyword">type</span>) &#123;</span><br><span class="line">        <span class="keyword">case</span> *cancelCtx:</span><br><span class="line">            <span class="keyword">return</span> c, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *timerCtx:</span><br><span class="line">            <span class="keyword">return</span> &amp;c.cancelCtx, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *valueCtx:</span><br><span class="line">            parent = c.Context</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这里只会找三种Context类型：cancelCtx，timerCtx，*valueCtx。若是把Context内嵌到自定义类型里，就识别不出来了，就会走default了。为避免这种情况父节点取消传递不到当前节点之后的节点，重新启动了一个协程来传递这种情况，所以使用可取消的context的时候，尽量避免将ctx塞入自定义的结构里，不然会多一个协程来处理。<br>另一个巧妙的地方就是select</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">        child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">    <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>同时监听了父节点是否退出，也监听当前节点是否退出。这二者缺一不可。</p>
-<p>第一个case 好理解，上层几点取消要继续传递下去，就监听了上层是否被取消。</p>
-<p>第二个case 如果子节点自己退出了，那就不需要这个协程了，他的作用就是为了连接上层节点与自己。但如果去掉这个case，上层协程一直不取消，那这个goroutine就泄漏了。</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>context主要用于处理父子协程之间的同步取消信号，本质上是一种协程同步调用协调的方式。<br>在使用context的时候，有两点要注意：</p>
-<ul>
-<li>父协程只是使用context通知所有的子协程，我已经不需要你了，但不会直接干涉和中断下游任务的执行，具体的操作是由子协程决定操作，因此子协程要使用select来监听ctx.Done。</li>
-<li>context是线程安全的，可以放心地在多个协程中传递使用。</li>
-</ul>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2020/05/19/leetcode两个正序数组的中位数/">Leetcode 两个正序数组的中位数</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="leetcode-两个正序数组的中位数"><a href="#leetcode-两个正序数组的中位数" class="headerlink" title="leetcode 两个正序数组的中位数"></a>leetcode 两个正序数组的中位数</h4><p>题目</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">给定两个大小为 m 和 n 的正序（从小到大）数组 nums1 和 nums2。</span><br><span class="line"></span><br><span class="line">请你找出这两个正序数组的中位数，并且要求算法的时间复杂度为 O(log(m + n))。</span><br><span class="line"></span><br><span class="line">你可以假设 nums1 和 nums2 不会同时为空。</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">示例 1:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 3]</span><br><span class="line">nums2 = [2]</span><br><span class="line"></span><br><span class="line">则中位数是 2.0</span><br><span class="line">示例 2:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 2]</span><br><span class="line">nums2 = [3, 4]</span><br><span class="line"></span><br><span class="line">则中位数是 (2 + 3)/2 = 2.5</span><br></pre></td></tr></table></figure>
-
-<ol>
-<li>这道题，感觉在于理解什么是中位数</li>
-</ol>
-<p>基本思路就是把两个数组合并，但是只需要合并到 总数/2 就可以了 后面可以忽略</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">findMedianSortedArrays</span><span class="params">(self, nums1, nums2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type nums1: List[int]</span></span><br><span class="line"><span class="string">        :type nums2: List[int]</span></span><br><span class="line"><span class="string">        :rtype: float</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        <span class="keyword">if</span> len(nums1) &lt; len(nums2):</span><br><span class="line">            nums1, nums2 = nums2, nums1</span><br><span class="line">        index1 = <span class="number">0</span></span><br><span class="line">        index2 = <span class="number">0</span></span><br><span class="line">        total = len(nums1) + len(nums2)</span><br><span class="line">        <span class="keyword">while</span> index2 &lt; len(nums2) <span class="keyword">and</span> index1 &lt;= total / <span class="number">2</span>:     <span class="comment"># 结束条件</span></span><br><span class="line">            <span class="keyword">if</span> index1 &lt; len(nums1):								<span class="comment"># 两数组等长，数组1最大的数小雨数组2最小的数，会导致index1==len(nums1) index1 out of range</span></span><br><span class="line">                <span class="keyword">if</span> nums1[index1] &gt; nums2[index2]:</span><br><span class="line">                    nums1.insert(index1, nums2[index2])</span><br><span class="line">                    index2 += <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    index1 += <span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                nums1.append(nums2[index2])			<span class="comment"># 只要把数组2append到最后</span></span><br><span class="line">                index2  += <span class="number">1</span></span><br><span class="line">                </span><br><span class="line">        <span class="keyword">if</span> total % <span class="number">2</span> == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> (nums1[int(total / <span class="number">2</span>) - <span class="number">1</span>] + nums1[int(total / <span class="number">2</span>)]) / <span class="number">2.0</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> nums1[total / <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
-
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2020/05/19/redis-内存淘汰策略/">redis 内存淘汰策略</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/redis/">redis</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="redis-内存淘汰策略"><a href="#redis-内存淘汰策略" class="headerlink" title="redis 内存淘汰策略"></a>redis 内存淘汰策略</h4><p>将 Redis 用作缓存时, 如果内存空间用满, 就会根据配置的最大内存策略返回错误或者自动驱逐老的数据。</p>
-<h5 id="maxmemory-配置指令"><a href="#maxmemory-配置指令" class="headerlink" title="maxmemory 配置指令"></a>maxmemory 配置指令</h5><p>maxmemory 用于指定 Redis 能使用的最大内存。既可以在 <code>redis.conf</code> 文件中设置, 也可以在运行过程中通过 CONFIG SET 命令动态修改。</p>
-<p>例如, 要设置 100MB 的内存限制, 可以在 <code>redis.conf</code> 文件中这样配置</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory 100mb</span><br></pre></td></tr></table></figure>
-
-<p>将 <code>maxmemory</code> 设置为 0, 则表示不进行内存限制。当然, 对32位系统来说有一个隐性的限制条件: 最多 3GB 内存.</p>
-<h5 id="内存淘汰策略-maxmemory-policy"><a href="#内存淘汰策略-maxmemory-policy" class="headerlink" title="内存淘汰策略(maxmemory-policy)"></a>内存淘汰策略(maxmemory-policy)</h5><ul>
-<li><strong>noeviction</strong></li>
-</ul>
-<p>不删除，达到最大内存，如果继续写(新增)数据，直接返回错误信息。DEL还是可以正常执行。</p>
-<ul>
-<li><strong>allkeys-lru</strong></li>
-</ul>
-<p>所有key范围，优先删除最近最少使用(LRU)</p>
-<ul>
-<li><strong>volatile-lru</strong></li>
-</ul>
-<p>只限于设置了expire的部分，优先删除最近最少使用(LRU)的key</p>
-<ul>
-<li><strong>allkeys-random</strong></li>
-</ul>
-<p>所有key范围，随机删除一部分key</p>
-<ul>
-<li><strong>volatile-random</strong></li>
-</ul>
-<p>只限于设置了expire的部分key，随机删除</p>
-<ul>
-<li><strong>volatile-ttl</strong></li>
-</ul>
-<p>只限于设置了expire的部门；优先删除剩余时间短的key</p>
-<p>如果没有设置 <strong>expire</strong> 的key, 不满足先决条件(prerequisites); 那么 <strong>volatile-lru</strong>, <strong>volatile-random</strong> 和 <strong>volatile-ttl</strong> 策略的行为, 和 <strong>noeviction(不删除)</strong> 基本上一致。</p>
-<h4 id="内存淘汰的实现"><a href="#内存淘汰的实现" class="headerlink" title="内存淘汰的实现"></a>内存淘汰的实现</h4><p>淘汰过程：</p>
-<ul>
-<li>客户端执行命令，导致redis中的数据增加，内存增加</li>
-<li>Redis检查内存使用量，超过maxmemory限制，根据策略清除key</li>
-</ul>
-<h4 id="近似LRU算法"><a href="#近似LRU算法" class="headerlink" title="近似LRU算法"></a>近似LRU算法</h4><p>为了节约内存，采用了抽取少量的key样本，然后删除其中访问时间最久的key。</p>
-<p>在 Redis 的 LRU 算法中, 可以通过设置样本(sample)的数量来调优算法精度。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory-samples &lt;count&gt;</span><br></pre></td></tr></table></figure>
-        
-    </section>
-</article>
-
-
 
 
 <nav class="page-nav">
@@ -1174,7 +1214,7 @@
 
 </div>
         <footer class="footer">
-    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="http://www.miitbeian.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
 
     
 </footer>

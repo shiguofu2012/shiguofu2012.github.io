@@ -127,6 +127,215 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/01/03/Golang-Context详解/">Golang context 源码分析</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-03T15:00:00.000Z" itemprop="datePublished">2021-01-03</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>一般接触新东西都会有三问(what/why/how),我们也从这几个角度看下golang context。</p>
+<h3 id="WHAT-IS-CONTEXT"><a href="#WHAT-IS-CONTEXT" class="headerlink" title="WHAT IS CONTEXT"></a>WHAT IS CONTEXT</h3><p>Goroutine和Channel是go语言的特色，并发编程会使用协程来处理工作，通道用来协程之间的通信。主协程创建子协程，子协程再创建子协程，就会形成一个协程树状结构，协程之间可以采用通道来进行通信。<br>每个Goroutine在执行之前，都要先知道程序当前的执行状态，通常将这些执行状态都会封装Context变量中，传递给要执行的Goroutine中。比如在网络编程中，处理一个网络Request时，我们可能需要开启不同的Goroutine来获取数据与逻辑处理。而这些Goroutine可能需要共享Request的一些信息；同时当Request异常、超时或者被取消的时候，所有从这个Request创建的所有Goroutine都应该被结束。</p>
+<h3 id="WHY-CONTEXT"><a href="#WHY-CONTEXT" class="headerlink" title="WHY CONTEXT"></a>WHY CONTEXT</h3><p>上面我们说过，由于异常、超时或者被取消的情况，都应该结束该Request创建的所有Goroutine。假如不用context，我们看怎么去控制协程树。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> services</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"time"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">StartWork</span><span class="params">()</span></span> &#123;</span><br><span class="line">	data := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">10</span>)</span><br><span class="line">	done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;) <span class="comment">// 使用一个chan来控制协程的退出</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">defer</span> <span class="built_in">close</span>(data)</span><br><span class="line">	<span class="comment">// consumer</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> &#123;</span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> &lt;-done:</span><br><span class="line">				fmt.Println(<span class="string">"child process interrupt..."</span>)</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				fmt.Printf(<span class="string">"send message: %d\n"</span>, &lt;-data)</span><br><span class="line">				time.Sleep(time.Second * <span class="number">1</span>)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// producer</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		data &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second)</span><br><span class="line">	<span class="comment">// 退出协程</span></span><br><span class="line">	<span class="built_in">close</span>(done)</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">	fmt.Println(<span class="string">"main process exit!"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>子协程运行着任务，如果主协程需要在某个时刻发送消息通知子协程中断任务退出，那么就可以让子协程监听这个done channel，一旦主协程关闭done channel，那么子协程就可以推出了，这样就实现了主协程通知子协程的需求。这种方式运行良好，但是这也是有限的。<br>考虑这种情况：如果主协程中有多个任务1, 2, …n，主协程对这些任务有时间限制；而任务1又有多个子任务1, 2, …，k, 任务1对这些子任务也有自己的时间控制，那么这些子任务既要感知主协程的取消信号，也需要感知任务1的取消信号。<br>如果使用done channel的用法，这个时候需要定义两个done channel，子任务们需要同时监听这两个done channel,这样也可以正常work。但是如果层级更深，如果这些子任务还有子任务，那么使用done channel的方式将会变得非常繁琐且混乱。<br>这个时候 context出场了。</p>
+<h3 id="context-interface"><a href="#context-interface" class="headerlink" title="context interface"></a>context interface</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">    Err() error</span><br><span class="line">    Value(key <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>context包含四个方法</p>
+<ul>
+<li>Deadline 返回绑定当前context的任务执行的截止时间，如果没有截止时间，则ok==false</li>
+<li>Done 该函数返回一个只读的chan 数据是空结构体，类似我们上面的done，控制协程的退出</li>
+<li>Err 如果协程退出，该函数返回退出的原因，被取消或者执行超时等错误</li>
+<li>Value 获取context中传递的值</li>
+</ul>
+<p>可以看到Done方法返回的chan正是用来传递结束信号以抢占并中断当前任务的；Deadline方法用来表示gorotine是否在指定时间被取消；Err方法是用来解释goroutine被取消的原因；而Value则用于获取特定于当前任务的数据。<br>而context所包含的额外信息键值对是如何存储的呢？其实可以想象一颗树，树的每个节点可能携带一组键值对,如果当前节点上无法找到key所对应的值，就会向上去父节点里找，直到根节点，具体后面会说到。</p>
+<p>下面我们看下context的两个比较常用的实现，valueCtx/cancelCtx</p>
+<h4 id="valueCtx"><a href="#valueCtx" class="headerlink" title="valueCtx"></a>valueCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> valueCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    key, val <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>结构比较简单就是增加了key/val字段存储键值对<br>WithValue用以向其中存储键值对</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key, val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">Context</span></span> &#123;</span><br><span class="line">    <span class="keyword">if</span> key == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"nil key"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> !reflect.TypeOf(key).Comparable() &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"key is not comparable"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> &amp;valueCtx&#123;parent, key, val&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里添加键值对不是直接在原context结构体上直接添加，而是重新创建一个新的valueCtx节点，作为原ctx的子节点，并将键值对添加在子节点上，由此形成一条链表。获取value就是从这条链表上尾部向前搜寻(代码如下)：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *valueCtx)</span> <span class="title">Value</span><span class="params">(key <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">    <span class="keyword">if</span> c.key == key &#123;</span><br><span class="line">        <span class="keyword">return</span> c.val</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> c.Context.Value(key)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>valueCtx的增加值与获取值的过程如下：<br>With就是往链表的尾部增加节点，value就是从尾部开始获取对应的值，找到就退出；否则找到头部返回空.</p>
+<p><img src="/2021/01/03/Golang-Context详解/1607008927_6_w733_h99.png" alt="enter image description here"></p>
+<h4 id="cancelCtx"><a href="#cancelCtx" class="headerlink" title="cancelCtx"></a>cancelCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> canceler <span class="keyword">interface</span> &#123;</span><br><span class="line">    cancel(removeFromParent <span class="keyword">bool</span>, err error)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> cancelCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    mu       sync.Mutex            <span class="comment">// protects following fields</span></span><br><span class="line">    done     <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;         <span class="comment">// created lazily, closed by first cancel call</span></span><br><span class="line">    children <span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125; <span class="comment">// set to nil by the first cancel call</span></span><br><span class="line">    err      error                 <span class="comment">// set to non-nil by the first cancel call</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>cancelCtx是一个可以取消的 Context，实现了 canceler 接口。它直接将接口 Context 作为它的一个匿名字段，这样，它就可以被看成一个 Context。done是一个空结构体类型的channel，用来传递关闭信号，在协程中一般结合select来监听父协程退出信号；children是一个map，存储了所有可取消context的子节点，这样任意层级的context取消，都会给所有子context发送取消信号；err用于存储错误信息表示任务结束的原因。<br>先看下Done方法:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">Done</span><span class="params">()</span> &lt;-<span class="title">chan</span> <span class="title">struct</span></span>&#123;&#125; &#123;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">    d := c.done</span><br><span class="line">    c.mu.Unlock()</span><br><span class="line">    <span class="keyword">return</span> d</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>c.done懒汉式创建，调用Done方法才会创建。返回一个只读的chan,一般结合select监听。一旦取消，立马可读。<br>重点看下cancel方法</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">cancel</span><span class="params">(removeFromParent <span class="keyword">bool</span>, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 必须要传 err</span></span><br><span class="line">    <span class="keyword">if</span> err == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"context: internal error: missing cancel error"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.err != <span class="literal">nil</span> &#123;</span><br><span class="line">        c.mu.Unlock()</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// 已经被其他协程取消</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 给 err 字段赋值</span></span><br><span class="line">    c.err = err</span><br><span class="line">    <span class="comment">// 关闭 channel，通知其他协程</span></span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = closedchan</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="built_in">close</span>(c.done)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 遍历它的所有子节点</span></span><br><span class="line">    <span class="keyword">for</span> child := <span class="keyword">range</span> c.children &#123;</span><br><span class="line">        <span class="comment">// 递归地取消所有子节点</span></span><br><span class="line">        child.cancel(<span class="literal">false</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将子节点置空</span></span><br><span class="line">    c.children = <span class="literal">nil</span></span><br><span class="line">    c.mu.Unlock()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> removeFromParent &#123;</span><br><span class="line">        <span class="comment">// 从父节点中移除自己 </span></span><br><span class="line">        removeChild(c.Context, c)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>总体来看，cancel() 方法的功能就是关闭 channel：c.done；递归地取消所有的子节点；将自己从父节点树中摘掉。通过关闭 channel，goroutine 这边接收取消信号的方式就是 select 语句中的读 ctx.Done 可读，执行相应的退出函数。<br>这里有个比较巧妙的地方，调用子节点 cancel 方法的时候，传入的第一个参数是 false，最终子节点是没有调用removeChild，把自己从父节点移除。<br>移除的操作很简单，找到最近的可取消的祖先节点，将自己从其map中删除。最关键的一行：delete(p.children, child)。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">removeChild</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 查找最近的可取消节点</span></span><br><span class="line">    p, ok := parentCancelCtx(parent)</span><br><span class="line">    <span class="keyword">if</span> !ok &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> p.children != <span class="literal">nil</span> &#123;</span><br><span class="line">         <span class="comment">// 从最近的祖先节点的map中移除自己</span></span><br><span class="line">        <span class="built_in">delete</span>(p.children, child)</span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Unlock()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>那什么时候需要移除，什么时候不需要移除呢？<br>我们先来看下创建一个可取消的context。<br>WithCancel函数创建一个可取消的context，即cancelCtx类型的context,传入一个父context，返回context和CancelFunc，调用CancelFunc即可触发cancel操作。直接看源码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> CancelFunc <span class="function"><span class="keyword">func</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span> &#123;</span><br><span class="line">    c := newCancelCtx(parent)</span><br><span class="line">    propagateCancel(parent, &amp;c)</span><br><span class="line">    <span class="keyword">return</span> &amp;c, <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; c.cancel(<span class="literal">true</span>, Canceled) &#125;  <span class="comment">// 这里cancel传入了true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">newCancelCtx</span><span class="params">(parent Context)</span> <span class="title">cancelCtx</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> cancelCtx&#123;Context: parent&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，只有在使用WithCancel创建context的时候，返回的cancelFunc会传入true。这样当调用cancelFunc 时，会将这个 可取消的context从它的父节点里移除，因为父节点可能有很多子节点，取消之后要和父节点断绝关系，对其他没影响。而对于该context的所有子节点都会因为该节点的cancelFunc调用c.children = nil而化为灰烬，没有必要再一个一个移除。</p>
+<p><img src="/2021/01/03/Golang-Context详解/1607065426_62_w865_h334.png" alt="enter image description here"></p>
+<p>如上左图，代表一棵 context 树，当然也可以看做是一个协程树。当调用左图子context的cancel 方法后，该 context会依次调用children中的cancel的方法，此时子context不会移除自己；该context将自己从它的父 context中去除掉了：从children中delete，实线箭头变成了虚线。且虚线圈框出来的 context 都被取消了，圈内的 context间的父子关系都被取消掉了。<br>再重点看propagateCancel()：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">propagateCancel</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 父节点是个空节点</span></span><br><span class="line">    <span class="keyword">if</span> parent.Done() == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// parent is never canceled</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 找到可以取消的父 context</span></span><br><span class="line">    <span class="keyword">if</span> p, ok := parentCancelCtx(parent); ok &#123;</span><br><span class="line">        p.mu.Lock()</span><br><span class="line">        <span class="keyword">if</span> p.err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点已经被取消了，本节点（子节点）也要取消</span></span><br><span class="line">            child.cancel(<span class="literal">false</span>, p.err)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点未取消</span></span><br><span class="line">            <span class="keyword">if</span> p.children == <span class="literal">nil</span> &#123;</span><br><span class="line">                p.children = <span class="built_in">make</span>(<span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// "挂到"父节点上</span></span><br><span class="line">            p.children[child] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">        p.mu.Unlock()</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 如果没有找到可取消的父 context。新启动一个协程监控父节点或子节点取消信号</span></span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">select</span> &#123;</span><br><span class="line">            <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">                child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">            <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面这段代码的功能就是向上寻找可以“依靠”的“可取消”的context，并且“挂靠”上去。这样，调用上层cancel方法的时候，就可以层层传递，将那些挂靠的子context同时“取消”。<br>这里也有一个比较巧妙的设计，就是else的情况。起初我一直不理解，怎么可能会有else的情况发生，parent.Done()不为空，怎么会找不到可取消的父节点。这里要翻看parentCancelCtx的源码了。。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parentCancelCtx</span><span class="params">(parent Context)</span> <span class="params">(*cancelCtx, <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> &#123;</span><br><span class="line">        <span class="keyword">switch</span> c := parent.(<span class="keyword">type</span>) &#123;</span><br><span class="line">        <span class="keyword">case</span> *cancelCtx:</span><br><span class="line">            <span class="keyword">return</span> c, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *timerCtx:</span><br><span class="line">            <span class="keyword">return</span> &amp;c.cancelCtx, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *valueCtx:</span><br><span class="line">            parent = c.Context</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里只会找三种Context类型：cancelCtx，timerCtx，*valueCtx。若是把Context内嵌到自定义类型里，就识别不出来了，就会走default了。为避免这种情况父节点取消传递不到当前节点之后的节点，重新启动了一个协程来传递这种情况，所以使用可取消的context的时候，尽量避免将ctx塞入自定义的结构里，不然会多一个协程来处理。<br>另一个巧妙的地方就是select</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">        child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">    <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>同时监听了父节点是否退出，也监听当前节点是否退出。这二者缺一不可。</p>
+<p>第一个case 好理解，上层几点取消要继续传递下去，就监听了上层是否被取消。</p>
+<p>第二个case 如果子节点自己退出了，那就不需要这个协程了，他的作用就是为了连接上层节点与自己。但如果去掉这个case，上层协程一直不取消，那这个goroutine就泄漏了。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>context主要用于处理父子协程之间的同步取消信号，本质上是一种协程同步调用协调的方式。<br>在使用context的时候，有两点要注意：</p>
+<ul>
+<li>父协程只是使用context通知所有的子协程，我已经不需要你了，但不会直接干涉和中断下游任务的执行，具体的操作是由子协程决定操作，因此子协程要使用select来监听ctx.Done。</li>
+<li>context是线程安全的，可以放心地在多个协程中传递使用。</li>
+</ul>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2020/05/19/leetcode两个正序数组的中位数/">Leetcode 两个正序数组的中位数</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="leetcode-两个正序数组的中位数"><a href="#leetcode-两个正序数组的中位数" class="headerlink" title="leetcode 两个正序数组的中位数"></a>leetcode 两个正序数组的中位数</h4><p>题目</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">给定两个大小为 m 和 n 的正序（从小到大）数组 nums1 和 nums2。</span><br><span class="line"></span><br><span class="line">请你找出这两个正序数组的中位数，并且要求算法的时间复杂度为 O(log(m + n))。</span><br><span class="line"></span><br><span class="line">你可以假设 nums1 和 nums2 不会同时为空。</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">示例 1:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 3]</span><br><span class="line">nums2 = [2]</span><br><span class="line"></span><br><span class="line">则中位数是 2.0</span><br><span class="line">示例 2:</span><br><span class="line"></span><br><span class="line">nums1 = [1, 2]</span><br><span class="line">nums2 = [3, 4]</span><br><span class="line"></span><br><span class="line">则中位数是 (2 + 3)/2 = 2.5</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>这道题，感觉在于理解什么是中位数</li>
+</ol>
+<p>基本思路就是把两个数组合并，但是只需要合并到 总数/2 就可以了 后面可以忽略</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">findMedianSortedArrays</span><span class="params">(self, nums1, nums2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type nums1: List[int]</span></span><br><span class="line"><span class="string">        :type nums2: List[int]</span></span><br><span class="line"><span class="string">        :rtype: float</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        <span class="keyword">if</span> len(nums1) &lt; len(nums2):</span><br><span class="line">            nums1, nums2 = nums2, nums1</span><br><span class="line">        index1 = <span class="number">0</span></span><br><span class="line">        index2 = <span class="number">0</span></span><br><span class="line">        total = len(nums1) + len(nums2)</span><br><span class="line">        <span class="keyword">while</span> index2 &lt; len(nums2) <span class="keyword">and</span> index1 &lt;= total / <span class="number">2</span>:     <span class="comment"># 结束条件</span></span><br><span class="line">            <span class="keyword">if</span> index1 &lt; len(nums1):								<span class="comment"># 两数组等长，数组1最大的数小雨数组2最小的数，会导致index1==len(nums1) index1 out of range</span></span><br><span class="line">                <span class="keyword">if</span> nums1[index1] &gt; nums2[index2]:</span><br><span class="line">                    nums1.insert(index1, nums2[index2])</span><br><span class="line">                    index2 += <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    index1 += <span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                nums1.append(nums2[index2])			<span class="comment"># 只要把数组2append到最后</span></span><br><span class="line">                index2  += <span class="number">1</span></span><br><span class="line">                </span><br><span class="line">        <span class="keyword">if</span> total % <span class="number">2</span> == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> (nums1[int(total / <span class="number">2</span>) - <span class="number">1</span>] + nums1[int(total / <span class="number">2</span>)]) / <span class="number">2.0</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">return</span> nums1[total / <span class="number">2</span>]</span><br></pre></td></tr></table></figure>
+
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2020/05/19/redis-内存淘汰策略/">redis 内存淘汰策略</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/redis/">redis</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="redis-内存淘汰策略"><a href="#redis-内存淘汰策略" class="headerlink" title="redis 内存淘汰策略"></a>redis 内存淘汰策略</h4><p>将 Redis 用作缓存时, 如果内存空间用满, 就会根据配置的最大内存策略返回错误或者自动驱逐老的数据。</p>
+<h5 id="maxmemory-配置指令"><a href="#maxmemory-配置指令" class="headerlink" title="maxmemory 配置指令"></a>maxmemory 配置指令</h5><p>maxmemory 用于指定 Redis 能使用的最大内存。既可以在 <code>redis.conf</code> 文件中设置, 也可以在运行过程中通过 CONFIG SET 命令动态修改。</p>
+<p>例如, 要设置 100MB 的内存限制, 可以在 <code>redis.conf</code> 文件中这样配置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory 100mb</span><br></pre></td></tr></table></figure>
+
+<p>将 <code>maxmemory</code> 设置为 0, 则表示不进行内存限制。当然, 对32位系统来说有一个隐性的限制条件: 最多 3GB 内存.</p>
+<h5 id="内存淘汰策略-maxmemory-policy"><a href="#内存淘汰策略-maxmemory-policy" class="headerlink" title="内存淘汰策略(maxmemory-policy)"></a>内存淘汰策略(maxmemory-policy)</h5><ul>
+<li><strong>noeviction</strong></li>
+</ul>
+<p>不删除，达到最大内存，如果继续写(新增)数据，直接返回错误信息。DEL还是可以正常执行。</p>
+<ul>
+<li><strong>allkeys-lru</strong></li>
+</ul>
+<p>所有key范围，优先删除最近最少使用(LRU)</p>
+<ul>
+<li><strong>volatile-lru</strong></li>
+</ul>
+<p>只限于设置了expire的部分，优先删除最近最少使用(LRU)的key</p>
+<ul>
+<li><strong>allkeys-random</strong></li>
+</ul>
+<p>所有key范围，随机删除一部分key</p>
+<ul>
+<li><strong>volatile-random</strong></li>
+</ul>
+<p>只限于设置了expire的部分key，随机删除</p>
+<ul>
+<li><strong>volatile-ttl</strong></li>
+</ul>
+<p>只限于设置了expire的部门；优先删除剩余时间短的key</p>
+<p>如果没有设置 <strong>expire</strong> 的key, 不满足先决条件(prerequisites); 那么 <strong>volatile-lru</strong>, <strong>volatile-random</strong> 和 <strong>volatile-ttl</strong> 策略的行为, 和 <strong>noeviction(不删除)</strong> 基本上一致。</p>
+<h4 id="内存淘汰的实现"><a href="#内存淘汰的实现" class="headerlink" title="内存淘汰的实现"></a>内存淘汰的实现</h4><p>淘汰过程：</p>
+<ul>
+<li>客户端执行命令，导致redis中的数据增加，内存增加</li>
+<li>Redis检查内存使用量，超过maxmemory限制，根据策略清除key</li>
+</ul>
+<h4 id="近似LRU算法"><a href="#近似LRU算法" class="headerlink" title="近似LRU算法"></a>近似LRU算法</h4><p>为了节约内存，采用了抽取少量的key样本，然后删除其中访问时间最久的key。</p>
+<p>在 Redis 的 LRU 算法中, 可以通过设置样本(sample)的数量来调优算法精度。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory-samples &lt;count&gt;</span><br></pre></td></tr></table></figure>
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2020/05/19/leetcode两数相加/">Letcode 两数相加</a>
         </h1>
         
@@ -779,451 +988,6 @@
 </article>
 
 
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/16/mongodb/">mongodb replset 搭建</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-16T04:04:59.000Z" itemprop="datePublished">2019-09-16</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/mongodb/">mongodb</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>Mongodb 副本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点或者Arbiter节点。<br>副本集的所有写操作都交给Primary，Secondary从Primary同步oplog到本实例，以保持复制集内所有成员存储相同的数据集，实现数据的高可用。</p>
-<h5 id="常见场景"><a href="#常见场景" class="headerlink" title="常见场景"></a>常见场景</h5><ul>
-<li>数据冗余<br>集群可增加延迟写的节点，防止误操作</li>
-<li>读写分离<br>适合读多写少的业务</li>
-</ul>
-<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><p><img src="/2019/09/16/mongodb/mongo-replset.svg" alt="mongo结构"></p>
-<p>集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定</p>
-<blockquote>
-<p>A replica set can have up to 50 members but only 7 voting members.</p>
-<p>一个集群可以又最多50个节点，但有7个可投票的节点</p>
-</blockquote>
-<h3 id="节点角色"><a href="#节点角色" class="headerlink" title="节点角色"></a>节点角色</h3><ol>
-<li>主节点(primary)</li>
-</ol>
-<p>可接收所有的读写请求；同步oplog到从节点。一个Replica Set只能有一个Primary节点，当Primary挂掉后，其他Secondary或者Arbiter节点会重新选举出来一个主节点。</p>
-<ol start="2">
-<li>副本节点(secondary)</li>
-</ol>
-<p>与主节点保持同样的数据集。当主节点挂掉的时候，参与选主。</p>
-<ol start="3">
-<li>仲裁者(arbiter)</li>
-</ol>
-<p>不保持数据，不可能成为主节点，只进行投票选举主节点。为了打破投票中的偶数个节点的情况，Arbiter几乎没什么大的硬件资源需求.</p>
-<blockquote>
-<p>Do not run an arbiter on systems that also host the primary or the secondary members of the replica set.</p>
-<p>不要把仲裁节点与主节点或者从节点放在一台机器</p>
-</blockquote>
-<h3 id="两种结构"><a href="#两种结构" class="headerlink" title="两种结构"></a>两种结构</h3><ul>
-<li><strong>PSS</strong></li>
-</ul>
-<p>Primary + Secondary + Secondary模式，通过Primary和Secondary搭建的Replica Set</p>
-<p><img src="/2019/09/16/mongodb/PSS.png" alt="PSS"></p>
-<ul>
-<li><strong>PSA</strong></li>
-</ul>
-<p>Primary + Secondary + Arbiter模式，使用Arbiter搭建Replica Set</p>
-<p><img src="/2019/09/16/mongodb/PSA.png" alt="PSA"></p>
-<p>偶数个数据节点，加一个Arbiter构成的Replica Set</p>
-<h4 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h4><p>副本集通过 replSetInitiate 命令或 rs.initiate() 命令进行初始化。</p>
-<p>初始化后各个节点开始发送心跳消息，并发起 Primary 选举操作，获得大多数成员投票支持的节点，会成为 Primary，其余节点成为 Secondary。</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">config = &#123;</span><br><span class="line">    _id : "test_replset",   # 副本集名称</span><br><span class="line">    members : [</span><br><span class="line">        &#123;_id : 0, host : "rs1.example.net:27017"&#125;,      # 节点列表</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">1</span>, <span class="attr">host</span> : <span class="string">"rs2.example.net:27017"</span>&#125;,</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">2</span>, <span class="attr">host</span> : <span class="string">"rs3.example.net:27017"</span>&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br><span class="line">rs.initiate(config)</span><br></pre></td></tr></table></figure>
-
-<p>假设复制集内投票成员（后续介绍）数量为 N，则大多数为 N/2 + 1，当复制集内存活成员数量不足大多数时，整个复制集将无法选举出 Primary，复制集将无法提供写服务，处于只读状态</p>
-<ul>
-<li><p>Mongodb副本集的选举基于Bully算法，这是一种协调者竞选算法</p>
-</li>
-<li><p>Primary 的选举受节点间心跳、优先级、最新的 oplog 时间等多种因素影响</p>
-</li>
-</ul>
-<h5 id="特殊角色"><a href="#特殊角色" class="headerlink" title="特殊角色"></a><strong>特殊角色</strong></h5><ul>
-<li>Arbiter</li>
-</ul>
-<p>Arbiter 节点只参与投票，不能被选为 Primary，并且不从 Primary 同步数据。</p>
-<ul>
-<li>Priority==0</li>
-</ul>
-<p>Priority0节点的选举优先级为0，不会被选举为 Primary。</p>
-<ul>
-<li>Vote==0</li>
-</ul>
-<p>Mongodb 3.0里，复制集成员最多50个，参与 Primary 选举投票的成员最多7个，其他成员（Vote0）的 vote 属性必须设置为0，即不参与投票。</p>
-<ul>
-<li>Hidden==true</li>
-</ul>
-<p>Hidden 署行的 节点不能被选为primary（Priority 为0），并且对client 不可见。</p>
-<ul>
-<li>Delayed==time seconds</li>
-</ul>
-<p>Delayed 节点必须是 Hidden 节点，否则会出现数据不一致的情况； 其数据落后与 Primary 一段时间（可配置，比如半小时1小时等）</p>
-<h5 id="所有角色"><a href="#所有角色" class="headerlink" title="所有角色"></a>所有角色</h5><table>
-<thead>
-<tr>
-<th><strong>Number</strong></th>
-<th><strong>Name</strong></th>
-<th><strong>State Description</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0</td>
-<td>STARTUP</td>
-<td>还不是集群中的活跃点，读取配置阶段</td>
-</tr>
-<tr>
-<td>1</td>
-<td>PRIMARY</td>
-<td>唯一的写节点</td>
-</tr>
-<tr>
-<td>2</td>
-<td>SECONDARY</td>
-<td>从节点，主节点数据的拷贝</td>
-</tr>
-<tr>
-<td>3</td>
-<td>RECOVERING</td>
-<td>Members either perform startup self-checks, or transition from completing a rollback or resync.</td>
-</tr>
-<tr>
-<td>5</td>
-<td>STARTUP2</td>
-<td>已经加入集群，同步数据</td>
-</tr>
-<tr>
-<td>6</td>
-<td>UNKNOWN</td>
-<td></td>
-</tr>
-<tr>
-<td>7</td>
-<td>ARBITER</td>
-<td>仲裁，投票选举primary</td>
-</tr>
-<tr>
-<td>8</td>
-<td>DOWN</td>
-<td>不可达节点</td>
-</tr>
-<tr>
-<td>9</td>
-<td>ROLLBACK</td>
-<td></td>
-</tr>
-<tr>
-<td>10</td>
-<td>REMOVED</td>
-<td>c曾经再集群，但被移除</td>
-</tr>
-</tbody></table>
-<h5 id="触发选举条件"><a href="#触发选举条件" class="headerlink" title="触发选举条件"></a><strong>触发选举条件</strong></h5><ul>
-<li>新增一个节点到副本集</li>
-<li>初始化一个副本集</li>
-<li>primary放弃角色，如 rs.stepDown()/rs.reconfig()</li>
-<li>从库不能连接到主库(默认超过10s，可通过heartbeatTimeoutSecs参数控制)，由从库发起选举</li>
-</ul>
-<p>副本集的自动failover是通过心跳检测实现的，进而实现高可用</p>
-<p><img src="/2019/09/16/mongodb/mongo-failover.png" alt="mongo-failover"></p>
-<h3 id="读写配置"><a href="#读写配置" class="headerlink" title="读写配置"></a>读写配置</h3><p><strong>Read Preference</strong></p>
-<blockquote>
-<p>All read preference modes except primary may return stale data because secondaries replicate operations from the primary with some delay. Ensure that your application can tolerate stale data if you choose to use a non-primary mode.</p>
-<p>除了primary节点，其他的都有可能读到脏数据。保证你的app能够容忍脏数据</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th><strong>Read Preference Mode</strong></th>
-<th><strong>Description</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>primary</td>
-<td>优先主节点，默认<br><br> Multi-document transactions that contain read operations must use read preference primary. All operations in a given transaction must route to the same member.</td>
-</tr>
-<tr>
-<td>primaryPreferred</td>
-<td>主节点优先，主不可用，读从节点</td>
-</tr>
-<tr>
-<td>secondary</td>
-<td>从节点读取</td>
-</tr>
-<tr>
-<td>secondaryPreferred</td>
-<td>从节点优先，没有从节点可用，读主节点</td>
-</tr>
-<tr>
-<td>nearest</td>
-<td>网络延迟最少的节点，不管主从</td>
-</tr>
-</tbody></table>
-<p><strong>Write Concern</strong></p>
-<blockquote>
-<p>Write concern describes the level of acknowledgment requested from MongoDB for write operations</p>
-<p>写操作的确认</p>
-</blockquote>
-<p>选项如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123; w: &lt;value&gt;, j: &lt;boolean&gt;, wtimeout: &lt;number&gt; &#125;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>w: 写操作已经传播了几个mongod实例</p>
-<p>j: 等待写操作写入磁盘journal</p>
-<p>wtimeout: 写操作阻塞时间</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th>value</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><number></number></td>
-<td>w: 1,默认值（写入主节点）<br>w: 0,不需要确认写操作，可能会抛出异常<br>w: &gt;1,</td>
-</tr>
-<tr>
-<td>majority</td>
-<td>大多数数据可投票节点</td>
-</tr>
-<tr>
-<td><custom write concern name></custom></td>
-<td>写入一个标记的节点</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>Hidden</strong>, <strong>delayed</strong>, and <strong>priority 0</strong> members with member[n].votes greater than 0 can acknowledge majority write operations.</p>
-</blockquote>
-<p><strong>Read Concern</strong>（一致性/隔离性）</p>
-<table>
-<thead>
-<tr>
-<th>level</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>local</td>
-<td></td>
-</tr>
-<tr>
-<td>available</td>
-<td></td>
-</tr>
-<tr>
-<td>marjority</td>
-<td></td>
-</tr>
-<tr>
-<td>linearizable</td>
-<td></td>
-</tr>
-<tr>
-<td>snapshot</td>
-<td></td>
-</tr>
-</tbody></table>
-<h3 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h3><ul>
-<li>db version v4.2.0</li>
-<li>配置文件，复制三份，修改</li>
-</ul>
-<p>path/dbPath/pidFilePath</p>
-<p>bindIp：如果外网，需要将ip绑定为0.0.0.0</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"># for documentation of all options, see:</span><br><span class="line">#   http://docs.mongodb.org/manual/reference/configuration-options/</span><br><span class="line"></span><br><span class="line"># where to write logging data.</span><br><span class="line">systemLog:</span><br><span class="line">  destination: file</span><br><span class="line">  logAppend: true</span><br><span class="line">  path: /var/log/mongodb/mongod-27017.log</span><br><span class="line"></span><br><span class="line"># Where and how to store data.</span><br><span class="line">storage:</span><br><span class="line">  dbPath: /var/lib/mongo-27017</span><br><span class="line">  journal:</span><br><span class="line">    enabled: true</span><br><span class="line">#  engine:</span><br><span class="line">#  wiredTiger:</span><br><span class="line"></span><br><span class="line"># how the process runs</span><br><span class="line">processManagement:</span><br><span class="line">  fork: true  # fork and run in background</span><br><span class="line">  pidFilePath: /var/run/mongodb/mongod-27017.pid  # location of pidfile</span><br><span class="line">  timeZoneInfo: /usr/share/zoneinfo</span><br><span class="line"></span><br><span class="line"># network interfaces</span><br><span class="line">net:</span><br><span class="line">  port: 27017</span><br><span class="line">  bindIp: 127.0.0.1  # Enter 0.0.0.0,:: to bind to all IPv4 and IPv6 addresses or, alternatively, use the net.bindIpAll setting.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#security:</span><br><span class="line"></span><br><span class="line">#operationProfiling:</span><br><span class="line"></span><br><span class="line">replication:</span><br><span class="line">    replSetName: screensaver    # replset名称，同一副本集取值相同</span><br><span class="line">    oplogSizeMB: 4096</span><br><span class="line"></span><br><span class="line">#sharding:</span><br><span class="line"></span><br><span class="line">## Enterprise-Only Options</span><br><span class="line"></span><br><span class="line">#auditLog:</span><br><span class="line"></span><br><span class="line">#snmp:</span><br></pre></td></tr></table></figure>
-
-<p>这里我搞了三个，启动</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /etc/mongod-27017.conf</span><br><span class="line">mongod -f /etc/mongod-27018.conf</span><br><span class="line">mongod -f /etc/mongod-27019.conf</span><br></pre></td></tr></table></figure>
-
-<p>随便进入一个实例：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line">&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(0, 0),</span><br><span class="line">	&quot;ok&quot; : 0,</span><br><span class="line">	&quot;errmsg&quot; : &quot;no replset config has been received&quot;,</span><br><span class="line">	&quot;code&quot; : 94,</span><br><span class="line">	&quot;codeName&quot; : &quot;NotYetInitialized&quot;,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(0, 0),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">&gt; rs.initiate()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;info2&quot; : &quot;no configuration specified. Using a default configuration for the set&quot;,</span><br><span class="line">	&quot;me&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625811, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625811, 1)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:OTHER&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;set&quot; : &quot;screensaver&quot;,</span><br><span class="line">	&quot;date&quot; : ISODate(&quot;2019-09-16T09:23:35.861Z&quot;),</span><br><span class="line">	&quot;myState&quot; : 1,</span><br><span class="line">	&quot;term&quot; : NumberLong(1),</span><br><span class="line">	&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceId&quot; : -1,</span><br><span class="line">	&quot;heartbeatIntervalMillis&quot; : NumberLong(2000),</span><br><span class="line">	&quot;optimes&quot; : &#123;</span><br><span class="line">		&quot;lastCommittedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastCommittedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;readConcernMajorityOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;readConcernMajorityWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;appliedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;durableOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastAppliedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;lastDurableWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;)</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;lastStableRecoveryTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;lastStableCheckpointTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;members&quot; : [</span><br><span class="line">		&#123;</span><br><span class="line">			&quot;_id&quot; : 0,</span><br><span class="line">			&quot;name&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">			&quot;ip&quot; : &quot;127.0.0.1&quot;,</span><br><span class="line">			&quot;health&quot; : 1,</span><br><span class="line">			&quot;state&quot; : 1,</span><br><span class="line">			&quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">			&quot;uptime&quot; : 19222,</span><br><span class="line">			&quot;optime&quot; : &#123;</span><br><span class="line">				&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">				&quot;t&quot; : NumberLong(1)</span><br><span class="line">			&#125;,</span><br><span class="line">			&quot;optimeDate&quot; : ISODate(&quot;2019-09-16T09:23:34Z&quot;),</span><br><span class="line">			&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceId&quot; : -1,</span><br><span class="line">			&quot;infoMessage&quot; : &quot;could not find member to sync from&quot;,</span><br><span class="line">			&quot;electionTime&quot; : Timestamp(1568625811, 2),</span><br><span class="line">			&quot;electionDate&quot; : ISODate(&quot;2019-09-16T09:23:31Z&quot;),</span><br><span class="line">			&quot;configVersion&quot; : 1,</span><br><span class="line">			&quot;self&quot; : true,</span><br><span class="line">			&quot;lastHeartbeatMessage&quot; : &quot;&quot;</span><br><span class="line">		&#125;</span><br><span class="line">	],</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625814, 4),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625814, 4)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt;</span><br></pre></td></tr></table></figure>
-
-<p>初始化后，该实例成为primary，单机实例，增加其他节点</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">screensaver:PRIMARY&gt; rs.add(&apos;127.0.0.1:27018&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625914, 2),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625914, 2)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt; rs.addArb(&apos;127.0.0.1:27019&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625931, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625931, 1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>至此， PSA 模式的集群已经创建成功</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/11/hexo-image/">hexo引用图片无法显示</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-11T10:08:16.000Z" itemprop="datePublished">2019-09-11</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/hexo/">hexo</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <p>最近使用hexo，但是发现在文章中引用本地图片时总是显示不出来。</p>
-<h4 id="插件安装与配置"><a href="#插件安装与配置" class="headerlink" title="插件安装与配置"></a>插件安装与配置</h4><p>首先我们需要安装一个图片路径转换的插件，这个插件名字是<strong>hexo-asset-image</strong></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hexo-asset-image --save</span><br></pre></td></tr></table></figure>
-
-<p>但是这个插件的内容需要修改，不然还是会出现图片无法显示的问题。</p>
-<p>打开node_modules/hexo-asset-image/index.js，将内容更换为下面的代码</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">'use strict'</span>;</span><br><span class="line"><span class="keyword">var</span> cheerio = <span class="built_in">require</span>(<span class="string">'cheerio'</span>);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">getPosition</span>(<span class="params">str, m, i</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> str.split(m, i).join(m).length;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> version = <span class="built_in">String</span>(hexo.version).split(<span class="string">'.'</span>);</span><br><span class="line">hexo.extend.filter.register(<span class="string">'after_post_render'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">data</span>)</span>&#123;</span><br><span class="line">  <span class="keyword">var</span> config = hexo.config;</span><br><span class="line">  <span class="keyword">if</span>(config.post_asset_folder)&#123;</span><br><span class="line">    	<span class="keyword">var</span> link = data.permalink;</span><br><span class="line">	<span class="keyword">if</span>(version.length &gt; <span class="number">0</span> &amp;&amp; <span class="built_in">Number</span>(version[<span class="number">0</span>]) == <span class="number">3</span>)</span><br><span class="line">	   <span class="keyword">var</span> beginPos = getPosition(link, <span class="string">'/'</span>, <span class="number">1</span>) + <span class="number">1</span>;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	   <span class="keyword">var</span> beginPos = getPosition(link, <span class="string">'/'</span>, <span class="number">3</span>) + <span class="number">1</span>;</span><br><span class="line">	<span class="comment">// In hexo 3.1.1, the permalink of "about" page is like ".../about/index.html".</span></span><br><span class="line">	<span class="keyword">var</span> endPos = link.lastIndexOf(<span class="string">'/'</span>) + <span class="number">1</span>;</span><br><span class="line">    link = link.substring(beginPos, endPos);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> toprocess = [<span class="string">'excerpt'</span>, <span class="string">'more'</span>, <span class="string">'content'</span>];</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; toprocess.length; i++)&#123;</span><br><span class="line">      <span class="keyword">var</span> key = toprocess[i];</span><br><span class="line"> </span><br><span class="line">      <span class="keyword">var</span> $ = cheerio.load(data[key], &#123;</span><br><span class="line">        ignoreWhitespace: <span class="literal">false</span>,</span><br><span class="line">        xmlMode: <span class="literal">false</span>,</span><br><span class="line">        lowerCaseTags: <span class="literal">false</span>,</span><br><span class="line">        decodeEntities: <span class="literal">false</span></span><br><span class="line">      &#125;);</span><br><span class="line"></span><br><span class="line">      $(<span class="string">'img'</span>).each(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">		<span class="keyword">if</span> ($(<span class="keyword">this</span>).attr(<span class="string">'src'</span>))&#123;</span><br><span class="line">			<span class="comment">// For windows style path, we replace '\' to '/'.</span></span><br><span class="line">			<span class="keyword">var</span> src = $(<span class="keyword">this</span>).attr(<span class="string">'src'</span>).replace(<span class="string">'\\'</span>, <span class="string">'/'</span>);</span><br><span class="line">			<span class="keyword">if</span>(!<span class="regexp">/http[s]*.*|\/\/.*/</span>.test(src) &amp;&amp;</span><br><span class="line">			   !<span class="regexp">/^\s*\//</span>.test(src)) &#123;</span><br><span class="line">			  <span class="comment">// For "about" page, the first part of "src" can't be removed.</span></span><br><span class="line">			  <span class="comment">// In addition, to support multi-level local directory.</span></span><br><span class="line">			  <span class="keyword">var</span> linkArray = link.split(<span class="string">'/'</span>).filter(<span class="function"><span class="keyword">function</span>(<span class="params">elem</span>)</span>&#123;</span><br><span class="line">				<span class="keyword">return</span> elem != <span class="string">''</span>;</span><br><span class="line">			  &#125;);</span><br><span class="line">			  <span class="keyword">var</span> srcArray = src.split(<span class="string">'/'</span>).filter(<span class="function"><span class="keyword">function</span>(<span class="params">elem</span>)</span>&#123;</span><br><span class="line">				<span class="keyword">return</span> elem != <span class="string">''</span> &amp;&amp; elem != <span class="string">'.'</span>;</span><br><span class="line">			  &#125;);</span><br><span class="line">			  <span class="keyword">if</span>(srcArray.length &gt; <span class="number">1</span>)</span><br><span class="line">				srcArray.shift();</span><br><span class="line">			  src = srcArray.join(<span class="string">'/'</span>);</span><br><span class="line">			  $(<span class="keyword">this</span>).attr(<span class="string">'src'</span>, config.root + link + src);</span><br><span class="line">			  <span class="built_in">console</span>.info&amp;&amp;<span class="built_in">console</span>.info(<span class="string">"update link as:--&gt;"</span>+config.root + link + src);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;<span class="keyword">else</span>&#123;</span><br><span class="line">			<span class="built_in">console</span>.info&amp;&amp;<span class="built_in">console</span>.info(<span class="string">"no src attr, skipped..."</span>);</span><br><span class="line">			<span class="built_in">console</span>.info&amp;&amp;<span class="built_in">console</span>.info($(<span class="keyword">this</span>));</span><br><span class="line">		&#125;</span><br><span class="line">      &#125;);</span><br><span class="line">      data[key] = $.html();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p>打开_config.yml文件，修改下述内容</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">post_asset_folder: true</span><br><span class="line">url: &lt;你的github page地址或者其他域名&gt;</span><br></pre></td></tr></table></figure>
-
-<h4 id="重新生成"><a href="#重新生成" class="headerlink" title="重新生成"></a>重新生成</h4><h5 id="修改后，新建博客"><a href="#修改后，新建博客" class="headerlink" title="修改后，新建博客"></a>修改后，新建博客</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new test</span><br></pre></td></tr></table></figure>
-
-<p>会发现在source/_posts目录中，新建了test.md与同名的文件夹(<strong>test</strong>)</p>
-<h5 id="重新生成html文件，看到输出"><a href="#重新生成html文件，看到输出" class="headerlink" title="重新生成html文件，看到输出"></a>重新生成html文件，看到输出</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update link as:--&gt;//&lt;url&gt;/2019/09/11/xxxx/1568192562650.png</span><br></pre></td></tr></table></figure>
-
-<p>访问即可看见图片出来啦！</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/11/jenkins部署nodejs/">jenkins</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-11T08:56:18.000Z" itemprop="datePublished">2019-09-11</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/service/">service</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="jenkins-安装"><a href="#jenkins-安装" class="headerlink" title="jenkins 安装"></a>jenkins 安装</h4><h5 id="jdk安装"><a href="#jdk安装" class="headerlink" title="jdk安装"></a>jdk安装</h5><ol>
-<li>采用java8， 到官网下载jdk</li>
-<li>解压配置， JAVA_HOME PATH，执行如下</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@wpspic5 ~]# java -version </span><br><span class="line">openjdk version "1.8.0_161"</span><br><span class="line">OpenJDK Runtime Environment (build 1.8.0_161-b14)</span><br><span class="line">OpenJDK 64-Bit Server VM (build 25.161-b14, mixed mode)</span><br></pre></td></tr></table></figure>
-
-<h5 id="Jenkins-安装"><a href="#Jenkins-安装" class="headerlink" title="Jenkins 安装"></a>Jenkins 安装</h5><ol>
-<li><strong>下载RPM包安装</strong></li>
-</ol>
-<p>jenkins安装也比较简单，有相应的rpm安装包</p>
-<p><a href="https://pkg.jenkins.io/redhat-stable/" target="_blank" rel="noopener">官网地址</a> 选择合适的版本，下载安装</p>
-<ol start="2">
-<li><strong>yum安装</strong></li>
-</ol>
-<p>导入yum源</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo</span><br><span class="line">sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key</span><br></pre></td></tr></table></figure>
-
-<p>安装</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install jenkins</span><br></pre></td></tr></table></figure>
-
-<h4 id="jenkins-配置"><a href="#jenkins-配置" class="headerlink" title="jenkins 配置"></a>jenkins 配置</h4><p>默认端口号是8080，直接访问，会进行一些初始化，及插件的安装</p>
-<p><img src="/2019/09/11/jenkins部署nodejs/1568192562650.png" alt="1568192488358"></p>
-<p><strong>jenkins版本： 2.176.3-1.1</strong></p>
-<ol>
-<li><h4 id="部署节点配置"><a href="#部署节点配置" class="headerlink" title="部署节点配置"></a><strong>部署节点配置</strong></h4></li>
-</ol>
-<ul>
-<li><p>进入jenkins主界面，点击左侧菜单的 “<strong>系统管理-&gt;系统设置</strong>”，拖动配置项到“Publish on ssh”</p>
-</li>
-<li><p>新增登录主机的ssh private key/ password的登录信息</p>
-<p><img src="/2019/09/11/jenkins部署nodejs/jenkins-1.png" alt="jenkins-1"></p>
-</li>
-<li><p>增加节点，包括登录主机的用户名，IP地址，工作目录等, 可以新增多个节点</p>
-<ul>
-<li>Name: 主机标识符，用于区分</li>
-<li>Hostname： 主机ip地址</li>
-<li>Username: 登录主机的用户名</li>
-<li>Remote Directory： 远端工作目录</li>
-</ul>
-</li>
-</ul>
-<p><img src="/2019/09/11/jenkins部署nodejs/jenkins-host.png" alt="jenkins-host"></p>
-<ol start="2">
-<li><h4 id="部署配置"><a href="#部署配置" class="headerlink" title="部署配置"></a><strong>部署配置</strong></h4></li>
-</ol>
-<ul>
-<li><p>新建部署项，在主页左边栏，“<strong>新建任务</strong>“，起个有意义的名称，下面选择”<strong>自由风格的软件项目</strong>“</p>
-<p>找到源码管理，配置Git 的Repo/credit(获取代码的key),  分支；</p>
-<p>如果可以正常获取，不会出现提示</p>
-<p><img src="/2019/09/11/jenkins部署nodejs/jenkins-source.png" alt="jenkins-source"></p>
-<p>否则会出现如下提示，检查repo的配置是否写错误；检查key是不是有权限拉取代码</p>
-</li>
-</ul>
-<p><img src="/2019/09/11/jenkins部署nodejs/jenkins-source-1.png" alt="jenkins-source-1"></p>
-<ul>
-<li><p>找到”<strong>构建</strong>“ 选项</p>
-<ul>
-<li>加入构建的命令，即打包操作（进入到工作目录，直接打包）</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd $WORKSPACE</span><br><span class="line">TAR_NAME=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tar -cf $TAR_NAME ./</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>增加构建步骤，选择 ”send files or execute commands over SSH“, 采用ssh发送项目文件到目标机器并执行命令部署</li>
-</ul>
-<p><img src="/2019/09/11/jenkins部署nodejs/jenkins-build.png" alt="1567994464334"></p>
-<ul>
-<li>增加发送到目标机器后的操作命令，依赖于项目文件 (release/project_init.sh)</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">file_name=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tmp_dir=/tmp/wps_eb_tmp</span><br><span class="line">log_dir=/data/log/pm2/wps_eb-admin</span><br><span class="line">echo $file_name</span><br><span class="line">sudo rm -rf  $tmp_dir</span><br><span class="line">sudo mkdir -p $tmp_dir</span><br><span class="line">sudo tar -xf /tmp/$file_name -C $tmp_dir ./release/*</span><br><span class="line">cd $tmp_dir/release</span><br><span class="line">sudo ./project_init.sh /tmp/$file_name</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ul>
-
-        
-    </section>
-</article>
-
-
 
 
 <nav class="page-nav">
@@ -1233,7 +997,7 @@
 
 </div>
         <footer class="footer">
-    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="http://www.miitbeian.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
 
     
 </footer>
