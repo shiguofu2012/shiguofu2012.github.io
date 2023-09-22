@@ -127,6 +127,78 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/10/20/控制协程(goroutine)的并发数量/">控制协程(goroutine)的并发数量</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-10-20T08:57:16.000Z" itemprop="datePublished">2021-10-20</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>, <a class="article-tag-link" href="/tags/Goroutines/">Goroutines</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="1-并发过高导致程序崩溃"><a href="#1-并发过高导致程序崩溃" class="headerlink" title="1. 并发过高导致程序崩溃"></a>1. 并发过高导致程序崩溃</h4><p>先看一个简单的例子  </p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; math.MaxInt32; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(i <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			fmt.Println(i)</span><br><span class="line">			time.Sleep(time.Second)</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line">	wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个例子要创建 math.MaxInt32个协程，每个协程只是输出当前的编号，正常情况下，会乱序输出 0 ～math.MaxInt32 的数字，但实际执行一段时间后 直接panic。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">1298211</span><br><span class="line">251117</span><br><span class="line">1297752</span><br><span class="line">panic: too many concurrent operations on a single file or socket (max 1048575)</span><br><span class="line"></span><br><span class="line">goroutine 1300064 [running]:</span><br><span class="line">internal/poll.(*fdMutex).rwlock(0xc000026120, 0x0?)</span><br><span class="line">	/usr/local/go/src/internal/poll/fd_mutex.go:147 +0x11b</span><br><span class="line">internal/poll.(*FD).writeLock(...)</span><br><span class="line">	/usr/local/go/src/internal/poll/fd_mutex.go:239</span><br><span class="line">internal/poll.(*FD).Write(0xc000026120, &#123;0xc11b3ff928, 0x8, 0x8&#125;)</span><br><span class="line">	/usr/local/go/src/internal/poll/fd_unix.go:370 +0x72</span><br><span class="line">os.(*File).write(...)</span><br><span class="line">	/usr/local/go/src/os/file_posix.go:48</span><br><span class="line">os.(*File).Write(0xc000012018, &#123;0xc11b3ff928?, 0x8, 0xc1255acf50?&#125;)</span><br><span class="line">	/usr/local/go/src/os/file.go:175 +0x65</span><br><span class="line">fmt.Fprintln(&#123;0x10c6b88, 0xc000012018&#125;, &#123;0xc1255acf90, 0x1, 0x1&#125;)</span><br><span class="line">	/usr/local/go/src/fmt/print.go:285 +0x75</span><br><span class="line">fmt.Println(...)</span><br><span class="line">	/usr/local/go/src/fmt/print.go:294</span><br><span class="line">main.main.func1(0x0?)</span><br><span class="line">	/Users/shiguofu/Documents/hw.go:16 +0x8f</span><br><span class="line">created by main.main</span><br><span class="line">	/Users/shiguofu/Documents/hw.go:14 +0x3c</span><br><span class="line">panic: too many concurrent operations on a single file or socket (max 1048575)</span><br></pre></td></tr></table></figure>
+
+<p>报错信息也很明显，too many concurrent operations on a single file or socket</p>
+<p>对单个 file/socket 的并发操作个数超过了系统最大值，这个错误是由于fmt.Sprintf引起的，它将格式化数据输出到标准输出。标准输出在linux系统中是文件描述符为1的文件，标准错误输出是2，标准输入是0。</p>
+<p>总之就是系统资源耗尽了。</p>
+<p>那假如去掉fmt这行输出呢？程序很可能就会因为内部不足而被迫退出，笔者尝试去掉跑出错误，电脑16G的，跑到5G多已经卡的不行， 就强行退出了。其实也好理解，每个协程约占用2K控件，1M个协程就是2G的内存，那Math.MaxInt 读者自己计算下。</p>
+<h3 id="2-如何解决呢"><a href="#2-如何解决呢" class="headerlink" title="2. 如何解决呢"></a>2. 如何解决呢</h3><h4 id="2-1-利用channel的缓冲区大小来控制协程个数"><a href="#2-1-利用channel的缓冲区大小来控制协程个数" class="headerlink" title="2.1 利用channel的缓冲区大小来控制协程个数"></a>2.1 利用channel的缓冲区大小来控制协程个数</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">	ch := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, <span class="number">3</span>)</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		ch &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(i <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			log.Println(i)</span><br><span class="line">			time.Sleep(time.Second)</span><br><span class="line">			&lt;-ch</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line">	wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>make(chan struct{}, 3) 缓冲区大小为3，没有被消费的情况下，最多发送3个就被阻塞了</li>
+<li>开启协程前 往通道写入数据，缓冲区满 就阻塞了</li>
+<li>协程结束后 消费通道数据，缓冲区就可以继续写入数据，就可以再创建新的协程</li>
+</ul>
+<p>如下进行封装，可直接像waitgroup一样使用</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"context"</span></span><br><span class="line">	<span class="string">"sync"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> defaultSize = <span class="number">32</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// SizeWaitGroup the struct control limit of waitgroup</span></span><br><span class="line"><span class="keyword">type</span> SizeWaitGroup <span class="keyword">struct</span> &#123;</span><br><span class="line">	buf <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;  <span class="comment">// buffer to buf the current number of goroutines</span></span><br><span class="line">	wg  sync.WaitGroup <span class="comment">// the real wait group</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// NewSizeWaitGroup wait group with limit</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewSizeWaitGroup</span><span class="params">(size <span class="keyword">int</span>)</span> *<span class="title">SizeWaitGroup</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> size &lt;= <span class="number">0</span> &#123;</span><br><span class="line">		size = defaultSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> &amp;SizeWaitGroup&#123;</span><br><span class="line">		buf: <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, size),</span><br><span class="line">		wg:  sync.WaitGroup&#123;&#125;,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Add</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Add</span><span class="params">()</span></span> &#123;</span><br><span class="line">	_ = c.AddWithContext(context.Background())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// AddWithContext</span></span><br><span class="line"><span class="comment">// blocking if the number of goroutines has been reached</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">AddWithContext</span><span class="params">(ctx context.Context)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">		<span class="keyword">return</span> ctx.Err()</span><br><span class="line">	<span class="keyword">case</span> c.buf &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;: <span class="comment">// block</span></span><br><span class="line">		<span class="keyword">break</span></span><br><span class="line">	&#125;</span><br><span class="line">	c.wg.Add(<span class="number">1</span>)</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Done</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Done</span><span class="params">()</span></span> &#123;</span><br><span class="line">	&lt;-c.buf</span><br><span class="line">	c.wg.Done()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Wait</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SizeWaitGroup)</span> <span class="title">Wait</span><span class="params">()</span></span> &#123;</span><br><span class="line">	c.wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2-调整系统资源上限"><a href="#2-2-调整系统资源上限" class="headerlink" title="2.2 调整系统资源上限"></a>2.2 调整系统资源上限</h4><h5 id="2-2-1-ulimit"><a href="#2-2-1-ulimit" class="headerlink" title="2.2.1 ulimit"></a>2.2.1 ulimit</h5><p>有些场景下，即使我们有效地限制了协程的并发数量，但是仍旧出现了某一类资源不足的问题，例如：</p>
+<ul>
+<li>too many open files</li>
+<li>out of memory</li>
+<li>…</li>
+</ul>
+<p>操作系统通常会限制同时打开文件数量、栈空间大小等，<code>ulimit -a</code> 可以看到系统当前的设置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">core file size          (blocks, -c) 0</span><br><span class="line">data seg size           (kbytes, -d) unlimited</span><br><span class="line">scheduling priority             (-e) 0</span><br><span class="line">file size               (blocks, -f) unlimited</span><br><span class="line">pending signals                 (-i) 63068</span><br><span class="line">max locked memory       (kbytes, -l) 64</span><br><span class="line">max memory size         (kbytes, -m) unlimited</span><br><span class="line">open files                      (-n) 65535</span><br><span class="line">pipe size            (512 bytes, -p) 8</span><br><span class="line">POSIX message queues     (bytes, -q) 819200</span><br><span class="line">real-time priority              (-r) 0</span><br><span class="line">stack size              (kbytes, -s) 8192</span><br><span class="line">cpu time               (seconds, -t) unlimited</span><br><span class="line">max user processes              (-u) 63068</span><br><span class="line">virtual memory          (kbytes, -v) unlimited</span><br><span class="line">file locks                      (-x) unlimited</span><br></pre></td></tr></table></figure>
+
+<p>我们可以使用 <code>ulimit -n 999999</code>，将同时打开的文件句柄数量调整为 999999 来解决这个问题，其他的参数也可以按需调整。</p>
+<h5 id="2-2-2-虚拟内存-virtual-memory"><a href="#2-2-2-虚拟内存-virtual-memory" class="headerlink" title="2.2.2  虚拟内存(virtual memory)"></a>2.2.2  虚拟内存(virtual memory)</h5><p>虚拟内存是一项非常常见的技术了，即在内存不足时，将磁盘映射为内存使用，比如 linux 下的交换分区(swap space)。</p>
+<p>在linux创建交换分区</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo fallocate -l 20G /mnt/.swapfile # 创建 20G 空文件</span><br><span class="line">sudo mkswap /mnt/.swapfile    # 转换为交换分区文件</span><br><span class="line">sudo chmod 600 /mnt/.swapfile # 修改权限为 600</span><br><span class="line">sudo swapon /mnt/.swapfile    # 激活交换分区</span><br><span class="line">free -m # 查看当前内存使用情况(包括交换分区)</span><br></pre></td></tr></table></figure>
+
+<p>关闭交换分区</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo swapoff /mnt/.swapfile</span><br><span class="line">rm -rf /mnt/.swapfile</span><br></pre></td></tr></table></figure>
+
+<p>磁盘的 I/O 读写性能和内存条相差是非常大的，例如 DDR3 的内存条读写速率很容易达到 20GB/s，但是 SSD 固态硬盘的读写性能通常只能达到 0.5GB/s，相差 40倍之多。因此，使用虚拟内存技术将硬盘映射为内存使用，显然会对性能产生一定的影响。如果应用程序只是在较短的时间内需要较大的内存，那么虚拟内存能够有效避免 <code>out of memory</code> 的问题。如果应用程序长期高频度读写大量内存，那么虚拟内存对性能的影响就比较明显了。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2021/10/07/ES集群配置用户密码/">ES集群配置用户密码</a>
         </h1>
         
@@ -1085,120 +1157,6 @@
 <p>Golang 的实现是把 Metadata 塞在了 context 里面，只需要使用 <code>metadata.FromOutgoingContext(ctx)</code> 和 <code>metadata.FromIncomingContext(ctx)</code> 就能够访问本次请求的 Metadata。概念清楚之后代码应该非常好写了：</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> requestIdKey = <span class="string">"requestId"</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// client 请求RPC增加MetaData拦截器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDClientInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryClientInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求的MetaData</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">      <span class="comment">// 未添加则创建</span></span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		value := ctx.Value(requestIdKey)</span><br><span class="line">		<span class="keyword">if</span> requestID, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; requestID != <span class="string">""</span> &#123;</span><br><span class="line">      <span class="comment">// md 不区分大小写，内部会转换为小写</span></span><br><span class="line">      md.Set(requestIdKey, requestID)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> invoker(metadata.NewOutgoingContext(ctx, md), method, req, resp, cc, opts...)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// server端获取MetaData数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDServerInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		req <span class="keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求过来的MetaData</span></span><br><span class="line">		md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 后去请求的requstId，并设置到当前context中</span></span><br><span class="line">		requestIDs := md[requestIdKey]</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(requestIDs) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">			ctx = context.WithValue(ctx, requestIdKey, requestIDs[<span class="number">0</span>])</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> handler(ctx, req)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2021/01/04/logrotate-config/">日志切割工具 logrotate 配置</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2021-01-04T13:30:00.000Z" itemprop="datePublished">2021-01-04</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/service/">service</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h3 id="1-安装"><a href="#1-安装" class="headerlink" title="1. 安装"></a>1. 安装</h3><p>Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装</p>
-<h4 id="apt-yum-安装"><a href="#apt-yum-安装" class="headerlink" title="apt/yum 安装"></a>apt/yum 安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# yum install logrotate</span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line">Package logrotate-3.8.6-14.tl2.x86_64 already installed and latest version</span><br><span class="line">Nothing to do</span><br><span class="line">[root@VM-145-82-centos ~]#</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@VM-0-15-ubuntu:[10:59:47]:~# apt-get install logrotate</span><br><span class="line">Reading package lists... Done</span><br><span class="line">Building dependency tree</span><br><span class="line">Reading state information... Done</span><br><span class="line">logrotate is already the newest version (3.8.7-2ubuntu2.16.04.2).</span><br><span class="line">0 upgraded, 0 newly installed, 0 to remove and 385 not upgraded.</span><br></pre></td></tr></table></figure>
-
-<h4 id="源码安装"><a href="#源码安装" class="headerlink" title="源码安装"></a>源码安装</h4><p>github地址: <a href="https://github.com/logrotate/logrotate" target="_blank" rel="noopener">https://github.com/logrotate/logrotate</a> </p>
-<p>按照github安装</p>
-<h3 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h3><p>logrotate是利用系统crontab定时执行的，在目录/etc/cron.daily中有个logrotate的脚本。如果需要，可以在cron.hourly，也可以在/etc/crontab中增加自己的配置。</p>
-<p>这些配置都是独立的，结合自己的配置以及服务的日志量来自定义达到最优配置。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/sh</span><br><span class="line"></span><br><span class="line">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf</span><br><span class="line">EXITVALUE=$?</span><br><span class="line">if [ $EXITVALUE != 0 ]; then</span><br><span class="line">    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"</span><br><span class="line">fi</span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
-
-<p>配置文件主要存放在目录</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# ls /etc/logrotate.d/</span><br><span class="line">conman  cron.30m  iptraf-ng  mgetty  mongodb  mysql  psacct  syslog  yum</span><br></pre></td></tr></table></figure>
-
-<p>一般安装会添加常用组件的配置，在生产环境中，我们会自定义一些配置。</p>
-<p>如下是本人常用的配置：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/data/log/*.log</span><br><span class="line">&#123;</span><br><span class="line">    daily</span><br><span class="line">    notifempty    </span><br><span class="line">    copytruncate</span><br><span class="line">    compress</span><br><span class="line">    rotate 60</span><br><span class="line">    missingok</span><br><span class="line">    dateext</span><br><span class="line">    dateformat -%s</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<table>
-<thead>
-<tr>
-<th><strong>配置参数</strong></th>
-<th><strong>说明</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>monthly</strong></td>
-<td>日志文件将按月轮循。其它可用值为’daily’，’weekly’或者’yearly’。</td>
-</tr>
-<tr>
-<td><strong>rotate 5</strong></td>
-<td>一次将存储5个归档日志。对于第六个归档，时间最久的归档将被删除。</td>
-</tr>
-<tr>
-<td><strong>compress</strong></td>
-<td>在轮循任务完成后，已轮循的归档将使用gzip进行压缩。</td>
-</tr>
-<tr>
-<td><strong>delaycompress</strong></td>
-<td>总是与compress选项一起用，delaycompress选项指示logrotate不要将最近的归档压缩，压缩将在下一次轮循周期进行。这在你或任何软件仍然需要读取最新归档时很有用。</td>
-</tr>
-<tr>
-<td><strong>missingok</strong></td>
-<td>在日志轮循期间，任何错误将被忽略，例如“文件无法找到”之类的错误。</td>
-</tr>
-<tr>
-<td><strong>notifempty</strong></td>
-<td>如果日志文件为空，轮循不会进行。</td>
-</tr>
-<tr>
-<td><strong>create 644 root root</strong></td>
-<td>以指定的权限创建全新的日志文件，同时logrotate也会重命名原始日志文件。</td>
-</tr>
-<tr>
-<td><strong>size</strong></td>
-<td>日志文件大小的配置，如果没达到这个大小，将不会压缩</td>
-</tr>
-<tr>
-<td><strong>dateext</strong></td>
-<td>压缩文件带上日期，默认会使用编号(log.log.1.gz)，该选项会是每次压缩都带上日期，如 log.log-2020</td>
-</tr>
-<tr>
-<td><strong>dateformat</strong></td>
-<td>日期格式  支持 %Y%m%d(年月日) %s(时间戳)</td>
-</tr>
-<tr>
-<td><strong>postrotate/endscript</strong></td>
-<td>在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行。在这种情况下，rsyslogd 进程将立即再次读取其配置并继续运行。</td>
-</tr>
-</tbody></table>
-<h3 id="3-执行频度定制"><a href="#3-执行频度定制" class="headerlink" title="3. 执行频度定制"></a>3. 执行频度定制</h3><p>logrotate是在cron中执行的，因此要自定义执行频度，可以增加crontab配置</p>
-<p>比如，我们的服务需要每半小时压缩一次 hourly是不满足我们的需求，就需要在crontab中增加一条记录</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# crontab -e</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> rotate nginx log every 30min</span><br><span class="line">*/30 * * * * /usr/sbin/logrotate  /etc/logrotate.d/cron.30m/*  -f</span><br></pre></td></tr></table></figure>
-
-<p>可以将30min执行的所有配置文件放到一个目录，执行30min命令。</p>
-<h4 id="4-手动执行"><a href="#4-手动执行" class="headerlink" title="4. 手动执行"></a>4. 手动执行</h4><p>配置文件是否配置成功，执行后是什么效果。logrotate提供测试的功能。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# logrotate -d /etc/logrotate.d/cron.30m/*</span><br><span class="line">reading config file /etc/logrotate.d/cron.30m/nginx</span><br><span class="line">Allocating hash table for state file, size 15360 B</span><br><span class="line"></span><br><span class="line">Handling 1 logs</span><br><span class="line"></span><br><span class="line">rotating pattern: /var/log/nginx/*log  after 1 days (10 rotations)</span><br><span class="line">empty log files are not rotated, old logs are removed</span><br><span class="line">considering log /var/log/nginx/access.log</span><br><span class="line">  log does not need rotating (log is empty)considering log /var/log/nginx/error.log</span><br><span class="line">  log does not need rotating (log is empty)not running postrotate script, since no logs were rotated</span><br></pre></td></tr></table></figure>
-
-<p>执行后，会输出文件怎么变更，压缩重命名等。比如上面会提示 “old logs are removed” “10 rotate” 等记录。</p>
-<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>logrotate工具对于防止因庞大的日志文件而耗尽存储空间是十分有用的。配置完毕后，进程是全自动的，可以长时间在不需要人为干预下运行。可以根据需求及日志量定制自己的日志切割规则。</p>
 
         
     </section>
