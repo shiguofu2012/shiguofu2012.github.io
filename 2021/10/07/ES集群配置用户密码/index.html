@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>ES集群配置用户密码 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="ElastiSearch集群配置用户密码ES集群配置启动成功后，默认是没有密码的，经常被内部扫出安全漏洞，存在数据泄漏及篡改的风险。集群证书设置启用了x-pack模块，那么集群中的各节点之间通讯就必须安全认证。为了解决节点间通讯的认证问，我们需要制作证书。不然直接生成密码的话， 会报1Cause: Cluster state has not been recovered yet, cannot write to the [null]index1elasticsearch-ce...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#ElastiSearch集群配置用户密码"><span class="toc-number">1.</span> <span class="toc-text">ElastiSearch集群配置用户密码</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#集群证书设置"><span class="toc-number">1.1.</span> <span class="toc-text">集群证书设置</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#elasticsearch-yml设置"><span class="toc-number">1.2.</span> <span class="toc-text">elasticsearch.yml设置</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#开始设置密码"><span class="toc-number">1.3.</span> <span class="toc-text">开始设置密码</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#验证密码"><span class="toc-number">1.4.</span> <span class="toc-text">验证密码</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ES修改密码"><span class="toc-number">1.5.</span> <span class="toc-text">ES修改密码</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#es-docker-compose配置"><span class="toc-number">1.6.</span> <span class="toc-text">es docker-compose配置</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            ES集群配置用户密码
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2021/10/07/ES集群配置用户密码/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-10-07T08:57:16.000Z" itemprop="datePublished">2021-10-07</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/ElasticSearch/">ElasticSearch</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="ElastiSearch集群配置用户密码"><a href="#ElastiSearch集群配置用户密码" class="headerlink" title="ElastiSearch集群配置用户密码"></a>ElastiSearch集群配置用户密码</h3><blockquote>
+<p>ES集群配置启动成功后，默认是没有密码的，经常被内部扫出安全漏洞，存在数据泄漏及篡改的风险。</p>
+</blockquote>
+<h4 id="集群证书设置"><a href="#集群证书设置" class="headerlink" title="集群证书设置"></a>集群证书设置</h4><p>启用了x-pack模块，那么集群中的各节点之间通讯就必须安全认证。为了解决节点间通讯的认证问，我们需要制作证书。</p>
+<p>不然直接生成密码的话， 会报</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Cause: Cluster state has not been recovered yet, cannot write to the [null]index</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">elasticsearch-certutil  cert</span><br></pre></td></tr></table></figure>
+
+<p>按照提示一步一步生成elastic-certificates.p12 文件。</p>
+<h4 id="elasticsearch-yml设置"><a href="#elasticsearch-yml设置" class="headerlink" title="elasticsearch.yml设置"></a>elasticsearch.yml设置</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">xpack.security.enabled: true</span><br><span class="line">xpack.security.transport.ssl.enabled: true</span><br><span class="line">xpack.security.transport.ssl.keystore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.truststore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.verification_mode: certificate</span><br><span class="line">xpack.security.transport.ssl.keystore.path: elastic-certificates.p12</span><br><span class="line">xpack.security.transport.ssl.truststore.path: elastic-certificates.p12</span><br></pre></td></tr></table></figure>
+
+<p>将生成的证书放在es根目录的config文件夹下，如 elasticsearch/config/elastic-certificates.p12。</p>
+<p>集群中每个节点都进行同样的配置，重启所有节点。</p>
+<blockquote>
+<p>Elasticsearch 有两个级别的通信，传输通信和 http 通信。 传输协议用于 Elasticsearch 节点之间的内部通信，http 协议用于客户端到 Elasticsearch 集群的通信。<br>个人认为上面只设置了内部传输协议直接的证书，所以只用cert生成 ，没有ca生成。</p>
+<p>elasticsearch.yml设置里面也只设置了 xpack.security.transport.ssl， 没有设置xpack.security.http.ssl…</p>
+</blockquote>
+<h4 id="开始设置密码"><a href="#开始设置密码" class="headerlink" title="开始设置密码"></a>开始设置密码</h4><p>在任意节点中执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">elasticsearch-setup-passwords interactive</span><br></pre></td></tr></table></figure>
+
+<p>按照提示一步一步输入密码即可设置成功。</p>
+<h4 id="验证密码"><a href="#验证密码" class="headerlink" title="验证密码"></a>验证密码</h4><p>ES验证当然是用curl测试</p>
+<p>输入如下命令，账号密码替换为自己的，正确输出如下信息即设置成功。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl localhost:9200/_cat/nodes --user elastic:xxxxx</span><br><span class="line"></span><br><span class="line">10.10.x.x 17 99 0 0.06 0.09 0.12 xxxx * es-node3</span><br><span class="line">10.10.x.x 35 99 0 0.06 0.09 0.12 xxxx - es-node2</span><br><span class="line">10.10.x.x 40 99 0 0.06 0.09 0.12 xxxx - es-node1</span><br></pre></td></tr></table></figure>
+
+<h4 id="ES修改密码"><a href="#ES修改密码" class="headerlink" title="ES修改密码"></a>ES修改密码</h4><ol>
+<li>使用curl命令修改密码</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl -XPUT -u elastic:xxx http://localhost:9200/_xpack/security/user/elastic/_password -H </span><br><span class="line">&quot;Content-Type: application/json&quot; -d &apos;</span><br><span class="line">&#123;</span><br><span class="line">  &quot;password&quot;: &quot;your passwd&quot;</span><br><span class="line">&#125;&apos;</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>密码忘记</li>
+</ol>
+<p>进入es任意节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">/bin/elasticsearch-users useradd misspasswd -r superuser</span><br><span class="line">Enter new password: </span><br><span class="line">ERROR: Invalid password...passwords must be at least [6] characters long</span><br><span class="line">[root@cfeeab4bb0eb elasticsearch]# ./bin/elasticsearch-users useradd misspasswd -r superuser</span><br><span class="line">Enter new password: </span><br><span class="line">Retype new password:</span><br></pre></td></tr></table></figure>
+
+<p>然后使用新建的用户执行1操作即可修改密码.</p>
+<h4 id="es-docker-compose配置"><a href="#es-docker-compose配置" class="headerlink" title="es docker-compose配置"></a>es docker-compose配置</h4><p><a href="https://github.com/shiguofu2012/scripts/blob/master/docker-compose/es.yml" target="_blank" rel="noopener">https://github.com/shiguofu2012/scripts/blob/master/docker-compose/es.yml</a></p>
+<p>运行准备：</p>
+<ol>
+<li>创建目录，配置文件证书文件都是在宿主机器上的/root/data/es-7.5.1-{1,2,3}目录下</li>
+<li>证书文件(证书生成见上文)/配置文件</li>
+</ol>
+<p>配置文件1</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">cluster.name: test</span><br><span class="line">node.name: es-node3</span><br><span class="line"># network.bind_host: 0.0.0.0</span><br><span class="line">network.host: 0.0.0.0</span><br><span class="line"># network.publish_host: elasticsearch03</span><br><span class="line">http.port: 9200</span><br><span class="line">transport.tcp.port: 9300</span><br><span class="line">http.cors.enabled: true</span><br><span class="line">http.cors.allow-origin: &quot;*&quot;</span><br><span class="line">node.master: true</span><br><span class="line">node.data: true  </span><br><span class="line">cluster.initial_master_nodes: [&quot;es-node1&quot;, &quot;es-node2&quot;, &quot;es-node3&quot;]</span><br><span class="line"># 加host</span><br><span class="line">discovery.seed_hosts: [&quot;elasticsearch01&quot;,&quot;elasticsearch03&quot;, &quot;elasticsearch02&quot;] </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">xpack.security.enabled: true          </span><br><span class="line">xpack.security.transport.ssl.enabled: true</span><br><span class="line">xpack.security.transport.ssl.keystore.type: PKCS12</span><br><span class="line">xpack.security.transport.ssl.truststore.type: PKCS12                                                                                              </span><br><span class="line">xpack.security.transport.ssl.verification_mode: certificate</span><br><span class="line">xpack.security.transport.ssl.keystore.path: elastic-certificates.p12</span><br><span class="line">xpack.security.transport.ssl.truststore.path: elastic-certificates.p12</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line">version: &apos;2.2&apos;</span><br><span class="line">services:</span><br><span class="line">  elasticsearch01:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es01</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment:  放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 9200:9200</span><br><span class="line">      - 9201:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /root/data/es-7.5.1-1:/usr/share/elasticsearch/data</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-1/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /root/data/es-7.5.1-1/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line"></span><br><span class="line">  elasticsearch02:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es02</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment: 放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 9300:9200</span><br><span class="line">      - 9301:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-2:/usr/share/elasticsearch/data</span><br><span class="line">      - /root/data/es-7.5.1-2/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /root/data/es-7.5.1-2/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line">  elasticsearch03:</span><br><span class="line">    image: elasticsearch:7.10.1</span><br><span class="line">    container_name: es03</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    # environment:  放入配置文件</span><br><span class="line">      # - discovery.type=single-node</span><br><span class="line">      # - xpack.security.enabled=true</span><br><span class="line">      # - xpack.license.self_generated.type=basic</span><br><span class="line">      # - xpack.security.transport.ssl.enabled=true</span><br><span class="line">    ports:</span><br><span class="line">      - 6666:9200</span><br><span class="line">      - 6667:9300</span><br><span class="line">    volumes:</span><br><span class="line">      - /root/data/es-7.5.1-3:/usr/share/elasticsearch/data</span><br><span class="line">      - /root/data/es-7.5.1-3/elastic-certificates.p12:/usr/share/elasticsearch/config/elastic-certificates.p12</span><br><span class="line">      - /usr/local/jdk:/usr/share/elasticsearch/jdk</span><br><span class="line">      - /root/data/es-7.5.1-3/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  kibana:</span><br><span class="line">    image: kibana:7.10.1</span><br><span class="line">    container_name: kibana</span><br><span class="line">    links:</span><br><span class="line">      - elasticsearch01</span><br><span class="line">    networks:</span><br><span class="line">      - shiguofu_net</span><br><span class="line">    environment:</span><br><span class="line">      - ELASTICSEARCH_HOSTS=&quot;http://elasticsearch01:9200&quot;</span><br><span class="line">      - ELASTICSEARCH_USERNAME=&quot;elastic&quot;</span><br><span class="line">      - ELASTICSEARCH_PASSWORD=&quot;aeQwQKM0N0nY&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - elasticsearch01</span><br><span class="line">    ports:</span><br><span class="line">      - 5601:5601</span><br><span class="line"></span><br><span class="line">networks:</span><br><span class="line">  shiguofu_net:</span><br><span class="line">    driver: bridge</span><br><span class="line">    ipam:</span><br><span class="line">      config:</span><br><span class="line">        - subnet: 10.10.2.0/24</span><br></pre></td></tr></table></figure>
+
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

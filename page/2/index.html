@@ -127,6 +127,278 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2021/01/07/grpc_tracing/">gRPC tracing</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-07T05:19:59.000Z" itemprop="datePublished">2021-01-07</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>, <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><h3 id="gRPC"><a href="#gRPC" class="headerlink" title="gRPC"></a>gRPC</h3><p>gRPC是什么可以用官网的一句话来概括</p>
+<blockquote>
+<p>A high-performance, open-source universal RPC framework</p>
+</blockquote>
+<p><strong>所谓RPC(remote procedure call 远程过程调用)框架实际是提供了一套机制，使得应用程序之间可以进行通信，而且也遵从server/client模型。使用的时候客户端调用server端提供的接口就像是调用本地的函数一样。</strong>如下图所示就是一个典型的RPC结构图。</p>
+<p><img src="/2021/01/07/grpc_tracing/3959253-76284b64125a8673.png" alt="img"></p>
+<h3 id="gRPC-vs-Restful-API"><a href="#gRPC-vs-Restful-API" class="headerlink" title="gRPC vs. Restful API"></a>gRPC vs. Restful API</h3><p>既然是server/client模型，那么我们直接用restful api不是也可以满足吗，为什么还需要RPC呢？</p>
+<p>gRPC和restful API都提供了一套通信机制，用于server/client模型通信，而且它们都使用http作为底层的传输协议(严格地说, gRPC使用的http2.0，而restful api则不一定)。不过gRPC还是有些特有的优势，如下：</p>
+<ul>
+<li>gRPC可以通过protobuf来定义接口，从而可以有更加严格的接口约束条件。</li>
+<li>另外，通过protobuf可以将数据序列化为二进制编码，这会大幅减少需要传输的数据量，从而大幅提高性能。</li>
+<li>gRPC可以方便地支持流式通信(理论上通过http2.0就可以使用streaming模式, 但是通常web服务的restful api似乎很少这么用，通常的流式数据应用如视频流，一般都会使用专门的协议如HLS，RTMP等，这些就不是我们通常web服务了，而是有专门的服务器应用。）</li>
+</ul>
+<h3 id="Tracing"><a href="#Tracing" class="headerlink" title="Tracing"></a>Tracing</h3><p>微服务遍地都是，一个功能，一个接口都可能是一个微服务，微服务之间的调用混乱，无法追踪，很难找出瓶颈点，因此迫切需要一种方法来追踪服务之间的调用链路。</p>
+<ul>
+<li>MetaData</li>
+</ul>
+<p>Metadata 可以理解为一个 HTTP 请求的 Header（它的底层实现就是 HTTP/2 的 Header），用户可以通过访问和修改每个 gRPC Call 的 Metadata 来传递额外的信息：比如认证信息，比如用于追踪的 Request ID。</p>
+<ul>
+<li>interceptor</li>
+</ul>
+<p>Interceptor 有点类似于我们平时常用的 HTTP Middleware，不同的是它可以用在 Client 端和 Server 端。比如在收到请求之后输出日志，在请求出现错误的时候输出错误信息，比如获取请求中设置的 Request ID。</p>
+<ul>
+<li>Golang实现</li>
+</ul>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// UnaryInvoker is called by UnaryClientInterceptor to complete RPCs.</span></span><br><span class="line"><span class="keyword">type</span> UnaryInvoker <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, method <span class="keyword">string</span>, req, reply <span class="keyword">interface</span>&#123;&#125;, cc *ClientConn, opts ...CallOption)</span> <span class="title">error</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryClientInterceptor</span> <span class="title">intercepts</span> <span class="title">the</span> <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span> <span class="title">on</span> <span class="title">the</span> <span class="title">client</span>. <span class="title">invoker</span> <span class="title">is</span> <span class="title">the</span> <span class="title">handler</span> <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">RPC</span></span></span><br><span class="line"><span class="function">// <span class="title">and</span> <span class="title">it</span> <span class="title">is</span> <span class="title">the</span> <span class="title">responsibility</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">to</span> <span class="title">call</span> <span class="title">it</span>.</span></span><br><span class="line"><span class="function">// <span class="title">This</span> <span class="title">is</span> <span class="title">an</span> <span class="title">EXPERIMENTAL</span> <span class="title">API</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryClientInterceptor</span> <span class="title">func</span><span class="params">(ctx context.Context, method <span class="keyword">string</span>, req, reply <span class="keyword">interface</span>&#123;&#125;, cc *ClientConn, invoker UnaryInvoker, opts ...CallOption)</span> <span class="title">error</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryHandler</span> <span class="title">defines</span> <span class="title">the</span> <span class="title">handler</span> <span class="title">invoked</span> <span class="title">by</span> <span class="title">UnaryServerInterceptor</span> <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">normal</span></span></span><br><span class="line"><span class="function">// <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span>. <span class="title">If</span> <span class="title">a</span> <span class="title">UnaryHandler</span> <span class="title">returns</span> <span class="title">an</span> <span class="title">error</span>, <span class="title">it</span> <span class="title">should</span> <span class="title">be</span> <span class="title">produced</span> <span class="title">by</span> <span class="title">the</span></span></span><br><span class="line"><span class="function">// <span class="title">status</span> <span class="title">package</span>, <span class="title">or</span> <span class="title">else</span> <span class="title">gRPC</span> <span class="title">will</span> <span class="title">use</span> <span class="title">codes</span>.<span class="title">Unknown</span> <span class="title">as</span> <span class="title">the</span> <span class="title">status</span> <span class="title">code</span> <span class="title">and</span> <span class="title">err</span>.<span class="title">Error</span><span class="params">()</span> <span class="title">as</span></span></span><br><span class="line"><span class="function">// <span class="title">the</span> <span class="title">status</span> <span class="title">message</span> <span class="title">of</span> <span class="title">the</span> <span class="title">RPC</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryHandler</span> <span class="title">func</span><span class="params">(ctx context.Context, req <span class="keyword">interface</span>&#123;&#125;)</span> <span class="params">(<span class="keyword">interface</span>&#123;&#125;, error)</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// <span class="title">UnaryServerInterceptor</span> <span class="title">provides</span> <span class="title">a</span> <span class="title">hook</span> <span class="title">to</span> <span class="title">intercept</span> <span class="title">the</span> <span class="title">execution</span> <span class="title">of</span> <span class="title">a</span> <span class="title">unary</span> <span class="title">RPC</span> <span class="title">on</span> <span class="title">the</span> <span class="title">server</span>. <span class="title">info</span></span></span><br><span class="line"><span class="function">// <span class="title">contains</span> <span class="title">all</span> <span class="title">the</span> <span class="title">information</span> <span class="title">of</span> <span class="title">this</span> <span class="title">RPC</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">can</span> <span class="title">operate</span> <span class="title">on</span>. <span class="title">And</span> <span class="title">handler</span> <span class="title">is</span> <span class="title">the</span> <span class="title">wrapper</span></span></span><br><span class="line"><span class="function">// <span class="title">of</span> <span class="title">the</span> <span class="title">service</span> <span class="title">method</span> <span class="title">implementation</span>. <span class="title">It</span> <span class="title">is</span> <span class="title">the</span> <span class="title">responsibility</span> <span class="title">of</span> <span class="title">the</span> <span class="title">interceptor</span> <span class="title">to</span> <span class="title">invoke</span> <span class="title">handler</span></span></span><br><span class="line"><span class="function">// <span class="title">to</span> <span class="title">complete</span> <span class="title">the</span> <span class="title">RPC</span>.</span></span><br><span class="line"><span class="function"><span class="title">type</span> <span class="title">UnaryServerInterceptor</span> <span class="title">func</span><span class="params">(ctx context.Context, req <span class="keyword">interface</span>&#123;&#125;, info *UnaryServerInfo, handler UnaryHandler)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>Golang 的实现是把 Metadata 塞在了 context 里面，只需要使用 <code>metadata.FromOutgoingContext(ctx)</code> 和 <code>metadata.FromIncomingContext(ctx)</code> 就能够访问本次请求的 Metadata。概念清楚之后代码应该非常好写了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> requestIdKey = <span class="string">"requestId"</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// client 请求RPC增加MetaData拦截器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDClientInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryClientInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求的MetaData</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">      <span class="comment">// 未添加则创建</span></span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		value := ctx.Value(requestIdKey)</span><br><span class="line">		<span class="keyword">if</span> requestID, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; requestID != <span class="string">""</span> &#123;</span><br><span class="line">      <span class="comment">// md 不区分大小写，内部会转换为小写</span></span><br><span class="line">      md.Set(requestIdKey, requestID)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> invoker(metadata.NewOutgoingContext(ctx, md), method, req, resp, cc, opts...)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// server端获取MetaData数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDServerInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		req <span class="keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求过来的MetaData</span></span><br><span class="line">		md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 后去请求的requstId，并设置到当前context中</span></span><br><span class="line">		requestIDs := md[requestIdKey]</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(requestIDs) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">			ctx = context.WithValue(ctx, requestIdKey, requestIDs[<span class="number">0</span>])</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> handler(ctx, req)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2021/01/04/logrotate-config/">日志切割工具 logrotate 配置</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-04T13:30:00.000Z" itemprop="datePublished">2021-01-04</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="1-安装"><a href="#1-安装" class="headerlink" title="1. 安装"></a>1. 安装</h3><p>Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装</p>
+<h4 id="apt-yum-安装"><a href="#apt-yum-安装" class="headerlink" title="apt/yum 安装"></a>apt/yum 安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# yum install logrotate</span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line">Package logrotate-3.8.6-14.tl2.x86_64 already installed and latest version</span><br><span class="line">Nothing to do</span><br><span class="line">[root@VM-145-82-centos ~]#</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@VM-0-15-ubuntu:[10:59:47]:~# apt-get install logrotate</span><br><span class="line">Reading package lists... Done</span><br><span class="line">Building dependency tree</span><br><span class="line">Reading state information... Done</span><br><span class="line">logrotate is already the newest version (3.8.7-2ubuntu2.16.04.2).</span><br><span class="line">0 upgraded, 0 newly installed, 0 to remove and 385 not upgraded.</span><br></pre></td></tr></table></figure>
+
+<h4 id="源码安装"><a href="#源码安装" class="headerlink" title="源码安装"></a>源码安装</h4><p>github地址: <a href="https://github.com/logrotate/logrotate" target="_blank" rel="noopener">https://github.com/logrotate/logrotate</a> </p>
+<p>按照github安装</p>
+<h3 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h3><p>logrotate是利用系统crontab定时执行的，在目录/etc/cron.daily中有个logrotate的脚本。如果需要，可以在cron.hourly，也可以在/etc/crontab中增加自己的配置。</p>
+<p>这些配置都是独立的，结合自己的配置以及服务的日志量来自定义达到最优配置。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/sh</span><br><span class="line"></span><br><span class="line">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf</span><br><span class="line">EXITVALUE=$?</span><br><span class="line">if [ $EXITVALUE != 0 ]; then</span><br><span class="line">    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"</span><br><span class="line">fi</span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
+
+<p>配置文件主要存放在目录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# ls /etc/logrotate.d/</span><br><span class="line">conman  cron.30m  iptraf-ng  mgetty  mongodb  mysql  psacct  syslog  yum</span><br></pre></td></tr></table></figure>
+
+<p>一般安装会添加常用组件的配置，在生产环境中，我们会自定义一些配置。</p>
+<p>如下是本人常用的配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/data/log/*.log</span><br><span class="line">&#123;</span><br><span class="line">    daily</span><br><span class="line">    notifempty    </span><br><span class="line">    copytruncate</span><br><span class="line">    compress</span><br><span class="line">    rotate 60</span><br><span class="line">    missingok</span><br><span class="line">    dateext</span><br><span class="line">    dateformat -%s</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th><strong>配置参数</strong></th>
+<th><strong>说明</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>monthly</strong></td>
+<td>日志文件将按月轮循。其它可用值为’daily’，’weekly’或者’yearly’。</td>
+</tr>
+<tr>
+<td><strong>rotate 5</strong></td>
+<td>一次将存储5个归档日志。对于第六个归档，时间最久的归档将被删除。</td>
+</tr>
+<tr>
+<td><strong>compress</strong></td>
+<td>在轮循任务完成后，已轮循的归档将使用gzip进行压缩。</td>
+</tr>
+<tr>
+<td><strong>delaycompress</strong></td>
+<td>总是与compress选项一起用，delaycompress选项指示logrotate不要将最近的归档压缩，压缩将在下一次轮循周期进行。这在你或任何软件仍然需要读取最新归档时很有用。</td>
+</tr>
+<tr>
+<td><strong>missingok</strong></td>
+<td>在日志轮循期间，任何错误将被忽略，例如“文件无法找到”之类的错误。</td>
+</tr>
+<tr>
+<td><strong>notifempty</strong></td>
+<td>如果日志文件为空，轮循不会进行。</td>
+</tr>
+<tr>
+<td><strong>create 644 root root</strong></td>
+<td>以指定的权限创建全新的日志文件，同时logrotate也会重命名原始日志文件。</td>
+</tr>
+<tr>
+<td><strong>size</strong></td>
+<td>日志文件大小的配置，如果没达到这个大小，将不会压缩</td>
+</tr>
+<tr>
+<td><strong>dateext</strong></td>
+<td>压缩文件带上日期，默认会使用编号(log.log.1.gz)，该选项会是每次压缩都带上日期，如 log.log-2020</td>
+</tr>
+<tr>
+<td><strong>dateformat</strong></td>
+<td>日期格式  支持 %Y%m%d(年月日) %s(时间戳)</td>
+</tr>
+<tr>
+<td><strong>postrotate/endscript</strong></td>
+<td>在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行。在这种情况下，rsyslogd 进程将立即再次读取其配置并继续运行。</td>
+</tr>
+</tbody></table>
+<h3 id="3-执行频度定制"><a href="#3-执行频度定制" class="headerlink" title="3. 执行频度定制"></a>3. 执行频度定制</h3><p>logrotate是在cron中执行的，因此要自定义执行频度，可以增加crontab配置</p>
+<p>比如，我们的服务需要每半小时压缩一次 hourly是不满足我们的需求，就需要在crontab中增加一条记录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# crontab -e</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> rotate nginx log every 30min</span><br><span class="line">*/30 * * * * /usr/sbin/logrotate  /etc/logrotate.d/cron.30m/*  -f</span><br></pre></td></tr></table></figure>
+
+<p>可以将30min执行的所有配置文件放到一个目录，执行30min命令。</p>
+<h4 id="4-手动执行"><a href="#4-手动执行" class="headerlink" title="4. 手动执行"></a>4. 手动执行</h4><p>配置文件是否配置成功，执行后是什么效果。logrotate提供测试的功能。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# logrotate -d /etc/logrotate.d/cron.30m/*</span><br><span class="line">reading config file /etc/logrotate.d/cron.30m/nginx</span><br><span class="line">Allocating hash table for state file, size 15360 B</span><br><span class="line"></span><br><span class="line">Handling 1 logs</span><br><span class="line"></span><br><span class="line">rotating pattern: /var/log/nginx/*log  after 1 days (10 rotations)</span><br><span class="line">empty log files are not rotated, old logs are removed</span><br><span class="line">considering log /var/log/nginx/access.log</span><br><span class="line">  log does not need rotating (log is empty)considering log /var/log/nginx/error.log</span><br><span class="line">  log does not need rotating (log is empty)not running postrotate script, since no logs were rotated</span><br></pre></td></tr></table></figure>
+
+<p>执行后，会输出文件怎么变更，压缩重命名等。比如上面会提示 “old logs are removed” “10 rotate” 等记录。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>logrotate工具对于防止因庞大的日志文件而耗尽存储空间是十分有用的。配置完毕后，进程是全自动的，可以长时间在不需要人为干预下运行。可以根据需求及日志量定制自己的日志切割规则。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            <a href="/2021/01/03/Golang-Context详解/">Golang context 源码分析</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2021-01-03T15:00:00.000Z" itemprop="datePublished">2021-01-03</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Golang/">Golang</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>一般接触新东西都会有三问(what/why/how),我们也从这几个角度看下golang context。</p>
+<h3 id="WHAT-IS-CONTEXT"><a href="#WHAT-IS-CONTEXT" class="headerlink" title="WHAT IS CONTEXT"></a>WHAT IS CONTEXT</h3><p>Goroutine和Channel是go语言的特色，并发编程会使用协程来处理工作，通道用来协程之间的通信。主协程创建子协程，子协程再创建子协程，就会形成一个协程树状结构，协程之间可以采用通道来进行通信。<br>每个Goroutine在执行之前，都要先知道程序当前的执行状态，通常将这些执行状态都会封装Context变量中，传递给要执行的Goroutine中。比如在网络编程中，处理一个网络Request时，我们可能需要开启不同的Goroutine来获取数据与逻辑处理。而这些Goroutine可能需要共享Request的一些信息；同时当Request异常、超时或者被取消的时候，所有从这个Request创建的所有Goroutine都应该被结束。</p>
+<h3 id="WHY-CONTEXT"><a href="#WHY-CONTEXT" class="headerlink" title="WHY CONTEXT"></a>WHY CONTEXT</h3><p>上面我们说过，由于异常、超时或者被取消的情况，都应该结束该Request创建的所有Goroutine。假如不用context，我们看怎么去控制协程树。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> services</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"time"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">StartWork</span><span class="params">()</span></span> &#123;</span><br><span class="line">	data := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>, <span class="number">10</span>)</span><br><span class="line">	done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;) <span class="comment">// 使用一个chan来控制协程的退出</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">defer</span> <span class="built_in">close</span>(data)</span><br><span class="line">	<span class="comment">// consumer</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> &#123;</span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> &lt;-done:</span><br><span class="line">				fmt.Println(<span class="string">"child process interrupt..."</span>)</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				fmt.Printf(<span class="string">"send message: %d\n"</span>, &lt;-data)</span><br><span class="line">				time.Sleep(time.Second * <span class="number">1</span>)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// producer</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		data &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second)</span><br><span class="line">	<span class="comment">// 退出协程</span></span><br><span class="line">	<span class="built_in">close</span>(done)</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">	fmt.Println(<span class="string">"main process exit!"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>子协程运行着任务，如果主协程需要在某个时刻发送消息通知子协程中断任务退出，那么就可以让子协程监听这个done channel，一旦主协程关闭done channel，那么子协程就可以推出了，这样就实现了主协程通知子协程的需求。这种方式运行良好，但是这也是有限的。<br>考虑这种情况：如果主协程中有多个任务1, 2, …n，主协程对这些任务有时间限制；而任务1又有多个子任务1, 2, …，k, 任务1对这些子任务也有自己的时间控制，那么这些子任务既要感知主协程的取消信号，也需要感知任务1的取消信号。<br>如果使用done channel的用法，这个时候需要定义两个done channel，子任务们需要同时监听这两个done channel,这样也可以正常work。但是如果层级更深，如果这些子任务还有子任务，那么使用done channel的方式将会变得非常繁琐且混乱。<br>这个时候 context出场了。</p>
+<h3 id="context-interface"><a href="#context-interface" class="headerlink" title="context interface"></a>context interface</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">    Err() error</span><br><span class="line">    Value(key <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>context包含四个方法</p>
+<ul>
+<li>Deadline 返回绑定当前context的任务执行的截止时间，如果没有截止时间，则ok==false</li>
+<li>Done 该函数返回一个只读的chan 数据是空结构体，类似我们上面的done，控制协程的退出</li>
+<li>Err 如果协程退出，该函数返回退出的原因，被取消或者执行超时等错误</li>
+<li>Value 获取context中传递的值</li>
+</ul>
+<p>可以看到Done方法返回的chan正是用来传递结束信号以抢占并中断当前任务的；Deadline方法用来表示gorotine是否在指定时间被取消；Err方法是用来解释goroutine被取消的原因；而Value则用于获取特定于当前任务的数据。<br>而context所包含的额外信息键值对是如何存储的呢？其实可以想象一颗树，树的每个节点可能携带一组键值对,如果当前节点上无法找到key所对应的值，就会向上去父节点里找，直到根节点，具体后面会说到。</p>
+<p>下面我们看下context的两个比较常用的实现，valueCtx/cancelCtx</p>
+<h4 id="valueCtx"><a href="#valueCtx" class="headerlink" title="valueCtx"></a>valueCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> valueCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    key, val <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>结构比较简单就是增加了key/val字段存储键值对<br>WithValue用以向其中存储键值对</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key, val <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">Context</span></span> &#123;</span><br><span class="line">    <span class="keyword">if</span> key == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"nil key"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> !reflect.TypeOf(key).Comparable() &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"key is not comparable"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> &amp;valueCtx&#123;parent, key, val&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里添加键值对不是直接在原context结构体上直接添加，而是重新创建一个新的valueCtx节点，作为原ctx的子节点，并将键值对添加在子节点上，由此形成一条链表。获取value就是从这条链表上尾部向前搜寻(代码如下)：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *valueCtx)</span> <span class="title">Value</span><span class="params">(key <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">interface</span></span>&#123;&#125; &#123;</span><br><span class="line">    <span class="keyword">if</span> c.key == key &#123;</span><br><span class="line">        <span class="keyword">return</span> c.val</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> c.Context.Value(key)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>valueCtx的增加值与获取值的过程如下：<br>With就是往链表的尾部增加节点，value就是从尾部开始获取对应的值，找到就退出；否则找到头部返回空.</p>
+<p><img src="/2021/01/03/Golang-Context详解/1607008927_6_w733_h99.png" alt="enter image description here"></p>
+<h4 id="cancelCtx"><a href="#cancelCtx" class="headerlink" title="cancelCtx"></a>cancelCtx</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> canceler <span class="keyword">interface</span> &#123;</span><br><span class="line">    cancel(removeFromParent <span class="keyword">bool</span>, err error)</span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> cancelCtx <span class="keyword">struct</span> &#123;</span><br><span class="line">    Context</span><br><span class="line">    mu       sync.Mutex            <span class="comment">// protects following fields</span></span><br><span class="line">    done     <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;         <span class="comment">// created lazily, closed by first cancel call</span></span><br><span class="line">    children <span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125; <span class="comment">// set to nil by the first cancel call</span></span><br><span class="line">    err      error                 <span class="comment">// set to non-nil by the first cancel call</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>cancelCtx是一个可以取消的 Context，实现了 canceler 接口。它直接将接口 Context 作为它的一个匿名字段，这样，它就可以被看成一个 Context。done是一个空结构体类型的channel，用来传递关闭信号，在协程中一般结合select来监听父协程退出信号；children是一个map，存储了所有可取消context的子节点，这样任意层级的context取消，都会给所有子context发送取消信号；err用于存储错误信息表示任务结束的原因。<br>先看下Done方法:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">Done</span><span class="params">()</span> &lt;-<span class="title">chan</span> <span class="title">struct</span></span>&#123;&#125; &#123;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">    d := c.done</span><br><span class="line">    c.mu.Unlock()</span><br><span class="line">    <span class="keyword">return</span> d</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>c.done懒汉式创建，调用Done方法才会创建。返回一个只读的chan,一般结合select监听。一旦取消，立马可读。<br>重点看下cancel方法</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *cancelCtx)</span> <span class="title">cancel</span><span class="params">(removeFromParent <span class="keyword">bool</span>, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 必须要传 err</span></span><br><span class="line">    <span class="keyword">if</span> err == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="built_in">panic</span>(<span class="string">"context: internal error: missing cancel error"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    c.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> c.err != <span class="literal">nil</span> &#123;</span><br><span class="line">        c.mu.Unlock()</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// 已经被其他协程取消</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 给 err 字段赋值</span></span><br><span class="line">    c.err = err</span><br><span class="line">    <span class="comment">// 关闭 channel，通知其他协程</span></span><br><span class="line">    <span class="keyword">if</span> c.done == <span class="literal">nil</span> &#123;</span><br><span class="line">        c.done = closedchan</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="built_in">close</span>(c.done)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 遍历它的所有子节点</span></span><br><span class="line">    <span class="keyword">for</span> child := <span class="keyword">range</span> c.children &#123;</span><br><span class="line">        <span class="comment">// 递归地取消所有子节点</span></span><br><span class="line">        child.cancel(<span class="literal">false</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将子节点置空</span></span><br><span class="line">    c.children = <span class="literal">nil</span></span><br><span class="line">    c.mu.Unlock()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> removeFromParent &#123;</span><br><span class="line">        <span class="comment">// 从父节点中移除自己 </span></span><br><span class="line">        removeChild(c.Context, c)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>总体来看，cancel() 方法的功能就是关闭 channel：c.done；递归地取消所有的子节点；将自己从父节点树中摘掉。通过关闭 channel，goroutine 这边接收取消信号的方式就是 select 语句中的读 ctx.Done 可读，执行相应的退出函数。<br>这里有个比较巧妙的地方，调用子节点 cancel 方法的时候，传入的第一个参数是 false，最终子节点是没有调用removeChild，把自己从父节点移除。<br>移除的操作很简单，找到最近的可取消的祖先节点，将自己从其map中删除。最关键的一行：delete(p.children, child)。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">removeChild</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 查找最近的可取消节点</span></span><br><span class="line">    p, ok := parentCancelCtx(parent)</span><br><span class="line">    <span class="keyword">if</span> !ok &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Lock()</span><br><span class="line">    <span class="keyword">if</span> p.children != <span class="literal">nil</span> &#123;</span><br><span class="line">         <span class="comment">// 从最近的祖先节点的map中移除自己</span></span><br><span class="line">        <span class="built_in">delete</span>(p.children, child)</span><br><span class="line">    &#125;</span><br><span class="line">    p.mu.Unlock()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>那什么时候需要移除，什么时候不需要移除呢？<br>我们先来看下创建一个可取消的context。<br>WithCancel函数创建一个可取消的context，即cancelCtx类型的context,传入一个父context，返回context和CancelFunc，调用CancelFunc即可触发cancel操作。直接看源码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> CancelFunc <span class="function"><span class="keyword">func</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span> &#123;</span><br><span class="line">    c := newCancelCtx(parent)</span><br><span class="line">    propagateCancel(parent, &amp;c)</span><br><span class="line">    <span class="keyword">return</span> &amp;c, <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; c.cancel(<span class="literal">true</span>, Canceled) &#125;  <span class="comment">// 这里cancel传入了true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">newCancelCtx</span><span class="params">(parent Context)</span> <span class="title">cancelCtx</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> cancelCtx&#123;Context: parent&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，只有在使用WithCancel创建context的时候，返回的cancelFunc会传入true。这样当调用cancelFunc 时，会将这个 可取消的context从它的父节点里移除，因为父节点可能有很多子节点，取消之后要和父节点断绝关系，对其他没影响。而对于该context的所有子节点都会因为该节点的cancelFunc调用c.children = nil而化为灰烬，没有必要再一个一个移除。</p>
+<p><img src="/2021/01/03/Golang-Context详解/1607065426_62_w865_h334.png" alt="enter image description here"></p>
+<p>如上左图，代表一棵 context 树，当然也可以看做是一个协程树。当调用左图子context的cancel 方法后，该 context会依次调用children中的cancel的方法，此时子context不会移除自己；该context将自己从它的父 context中去除掉了：从children中delete，实线箭头变成了虚线。且虚线圈框出来的 context 都被取消了，圈内的 context间的父子关系都被取消掉了。<br>再重点看propagateCancel()：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">propagateCancel</span><span class="params">(parent Context, child canceler)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 父节点是个空节点</span></span><br><span class="line">    <span class="keyword">if</span> parent.Done() == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="comment">// parent is never canceled</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 找到可以取消的父 context</span></span><br><span class="line">    <span class="keyword">if</span> p, ok := parentCancelCtx(parent); ok &#123;</span><br><span class="line">        p.mu.Lock()</span><br><span class="line">        <span class="keyword">if</span> p.err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点已经被取消了，本节点（子节点）也要取消</span></span><br><span class="line">            child.cancel(<span class="literal">false</span>, p.err)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 父节点未取消</span></span><br><span class="line">            <span class="keyword">if</span> p.children == <span class="literal">nil</span> &#123;</span><br><span class="line">                p.children = <span class="built_in">make</span>(<span class="keyword">map</span>[canceler]<span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// "挂到"父节点上</span></span><br><span class="line">            p.children[child] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">        p.mu.Unlock()</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 如果没有找到可取消的父 context。新启动一个协程监控父节点或子节点取消信号</span></span><br><span class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">            <span class="keyword">select</span> &#123;</span><br><span class="line">            <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">                child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">            <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面这段代码的功能就是向上寻找可以“依靠”的“可取消”的context，并且“挂靠”上去。这样，调用上层cancel方法的时候，就可以层层传递，将那些挂靠的子context同时“取消”。<br>这里也有一个比较巧妙的设计，就是else的情况。起初我一直不理解，怎么可能会有else的情况发生，parent.Done()不为空，怎么会找不到可取消的父节点。这里要翻看parentCancelCtx的源码了。。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parentCancelCtx</span><span class="params">(parent Context)</span> <span class="params">(*cancelCtx, <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> &#123;</span><br><span class="line">        <span class="keyword">switch</span> c := parent.(<span class="keyword">type</span>) &#123;</span><br><span class="line">        <span class="keyword">case</span> *cancelCtx:</span><br><span class="line">            <span class="keyword">return</span> c, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *timerCtx:</span><br><span class="line">            <span class="keyword">return</span> &amp;c.cancelCtx, <span class="literal">true</span></span><br><span class="line">        <span class="keyword">case</span> *valueCtx:</span><br><span class="line">            parent = c.Context</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里只会找三种Context类型：cancelCtx，timerCtx，*valueCtx。若是把Context内嵌到自定义类型里，就识别不出来了，就会走default了。为避免这种情况父节点取消传递不到当前节点之后的节点，重新启动了一个协程来传递这种情况，所以使用可取消的context的时候，尽量避免将ctx塞入自定义的结构里，不然会多一个协程来处理。<br>另一个巧妙的地方就是select</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> &lt;-parent.Done():</span><br><span class="line">        child.cancel(<span class="literal">false</span>, parent.Err())</span><br><span class="line">    <span class="keyword">case</span> &lt;-child.Done():</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>同时监听了父节点是否退出，也监听当前节点是否退出。这二者缺一不可。</p>
+<p>第一个case 好理解，上层几点取消要继续传递下去，就监听了上层是否被取消。</p>
+<p>第二个case 如果子节点自己退出了，那就不需要这个协程了，他的作用就是为了连接上层节点与自己。但如果去掉这个case，上层协程一直不取消，那这个goroutine就泄漏了。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>context主要用于处理父子协程之间的同步取消信号，本质上是一种协程同步调用协调的方式。<br>在使用context的时候，有两点要注意：</p>
+<ul>
+<li>父协程只是使用context通知所有的子协程，我已经不需要你了，但不会直接干涉和中断下游任务的执行，具体的操作是由子协程决定操作，因此子协程要使用select来监听ctx.Done。</li>
+<li>context是线程安全的，可以放心地在多个协程中传递使用。</li>
+</ul>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2020/05/19/leetcode两个正序数组的中位数/">Leetcode 两个正序数组的中位数</a>
         </h1>
         
@@ -667,513 +939,6 @@
 <h3 id="redis-sentinel"><a href="#redis-sentinel" class="headerlink" title="redis sentinel"></a>redis sentinel</h3><p>Sentinel(哨兵)是用于监控redis集群中Master状态的工具，sentinel哨兵模式已经被集成在redis2.4之后的版本中。</p>
 <p>sentinel进程可以监视一个或者多个redis master/slave服务；当某个master服务下线时，自动将该master下的某个从服务升级为master服务替代已下线的master服务继续处理请求。</p>
 <p>写博客太需要时间，未完，待续。。。</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/17/linux-config/">linux 一些配置</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-17T02:49:59.000Z" itemprop="datePublished">2019-09-17</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/linux/">linux</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="TCP最大监听队列修改"><a href="#TCP最大监听队列修改" class="headerlink" title="TCP最大监听队列修改"></a>TCP最大监听队列修改</h4><p>修改somaxconn参数值</p>
-<p>该内核参数默认值一般是128（定义了系统中每一个端口最大的监听队列的长度），对于负载很大的服务程序来说大大的不够。一般会将它修改为2048或者更大。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 2048 &gt; /proc/sys/net/core/somaxconn    # 临时修改，立马生效；系统重启丢失</span><br></pre></td></tr></table></figure>
-
-<p>在/etc/sysctl.conf中添加如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">net.core.somaxconn = 2048</span><br></pre></td></tr></table></figure>
-
-<p>然后在终端中执行</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sysctl -p</span><br></pre></td></tr></table></figure>
-
-<h4 id="redis-（overcommit-memory）WARNING"><a href="#redis-（overcommit-memory）WARNING" class="headerlink" title="redis （overcommit_memory）WARNING"></a>redis （overcommit_memory）WARNING</h4><p>redis 有时background save db不成功，log发现下面的告警，很可能由它引起的：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">17427:M 17 Sep 2019 10:54:12.730 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add &apos;vm.overcommit_memory = 1&apos; to /etc/sysctl.conf and then reboot or run the command &apos;sysctl vm.overcommit_memory=1&apos; for this to take effect.</span><br></pre></td></tr></table></figure>
-
-<p>看到这个顺道去查了下，发现</p>
-<p><strong>内核参数overcommit_memory</strong> </p>
-<p>它是内存分配策略，可选值：0、1、2。</p>
-<p>0 – 表示内核将检查是否有足够的可用内存供应用进程使用；如果有足够的可用内存，内存申请允许；否则，内存申请失败，并把错误返回给应用进程。<br>1 – 表示内核允许分配所有的物理内存，而不管当前的内存状态如何。<br>2 – 表示内核允许分配超过所有物理内存和交换空间总和的内存</p>
-<p><strong>Overcommit 与 OOM</strong></p>
-<p>   Linux对大部分申请内存的请求都回复”yes”，以便能跑更多更大的程序。因为申请内存后，并不会马上使用内存。这种技术叫做<strong>Overcommit</strong>。当linux发现内存不足时，会发生OOM killer(OOM=out-of-memory)。它会选择杀死一些进程(用户态进程，不是内核线程)，以便释放内存。</p>
-<p>   当oom-killer发生时，linux会选择杀死哪些进程？选择进程的函数是oom_badness函数(在mm/oom_kill.c中)，该函数会计算每个进程的点数(0~1000)。点数越高，这个进程越有可能被杀死。每个进程的点数跟oom_score_adj有关，而且oom_score_adj可以被设置(-1000最低，1000最高)。</p>
-<p><strong>解决办法</strong></p>
-<p>同样是修改内核参数：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 1 &gt; /proc/sys/vm/overcommit_memory # 临时修改，立马生效；系统重启丢失</span><br></pre></td></tr></table></figure>
-
-<p>编辑/etc/sysctl.conf ，新增下面一行，然后sysctl -p 使配置文件生效</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vm.overcommit_memory=1</span><br></pre></td></tr></table></figure>
-
-<h4 id="redis-Transparent-Huge-Pages-WARNING"><a href="#redis-Transparent-Huge-Pages-WARNING" class="headerlink" title="redis (Transparent Huge Pages) WARNING"></a>redis (<strong>Transparent Huge Pages</strong>) WARNING</h4><p>redis 在centos 7 启动后有警告</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">17427:M 17 Sep 2019 10:54:12.730 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command &apos;echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled&apos; as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.</span><br></pre></td></tr></table></figure>
-
-<p><strong>Transparent Huge Pages的一些官方介绍</strong></p>
-<blockquote>
-<p>The kernel will always attempt to satisfy a memory allocation using huge pages. If no huge pages are available (due to non availability of physically continuous memory for example) the kernel will fall back to the regular 4KB pages. THP are also swappable (unlike hugetlbfs). This is achieved by breaking the huge page to smaller 4KB pages, which are then swapped out normally.</p>
-</blockquote>
-<p><strong>禁止透明大页</strong></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost 6379]# cat /sys/kernel/mm/transparent_hugepage/enabled</span><br><span class="line">always madvise [never]</span><br></pre></td></tr></table></figure>
-
-<p>默认开启的，因此出现找不到文件，就是开启的</p>
-<h4 id="打开文件数的限制"><a href="#打开文件数的限制" class="headerlink" title="打开文件数的限制"></a>打开文件数的限制</h4><p>用户级的文件数限制, 可以通过 ulimit -n 来查看</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ulimit -n    # 查看当前用户能够打开的最大文件数</span><br><span class="line">1024</span><br></pre></td></tr></table></figure>
-
-<p>而系统级别的文件数限制，则通过sysctl -a来查看</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# sysctl -a | grep file-max</span><br><span class="line">fs.file-max = 284775</span><br></pre></td></tr></table></figure>
-
-<p>一般系统最大文件数会根据硬件资源计算出来的，如果强行需要修改最大打开文件数可以通过ulimit -n 10240来修改，当这种方式只对当前进程有效，如果需要永久有效则需要修改<strong>/etc/security/limits.conf</strong>（重启系统生效）</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">#&lt;type&gt; can have the two values:</span><br><span class="line">#        - &quot;soft&quot; for enforcing the soft limits</span><br><span class="line">#        - &quot;hard&quot; for enforcing hard limits</span><br><span class="line">#</span><br><span class="line">#&lt;item&gt; can be one of the following:</span><br><span class="line">#        - core - limits the core file size (KB)</span><br><span class="line">#        - data - max data size (KB)</span><br><span class="line">#        - fsize - maximum filesize (KB)</span><br><span class="line">#        - memlock - max locked-in-memory address space (KB)</span><br><span class="line">#        - nofile - max number of open file descriptors</span><br><span class="line">#        - rss - max resident set size (KB)</span><br><span class="line">#        - stack - max stack size (KB)</span><br><span class="line">#        - cpu - max CPU time (MIN)</span><br><span class="line">#        - nproc - max number of processes</span><br><span class="line">#        - as - address space limit (KB)</span><br><span class="line">#        - maxlogins - max number of logins for this user</span><br><span class="line">#        - maxsyslogins - max number of logins on the system</span><br><span class="line">#        - priority - the priority to run user process with</span><br><span class="line">#        - locks - max number of file locks the user can hold</span><br><span class="line">#        - sigpending - max number of pending signals</span><br><span class="line">#        - msgqueue - max memory used by POSIX message queues (bytes)</span><br><span class="line">#        - nice - max nice priority allowed to raise to values: [-20, 19]</span><br><span class="line">#        - rtprio - max realtime priority</span><br><span class="line">#</span><br><span class="line">#&lt;domain&gt;      &lt;type&gt;  &lt;item&gt;         &lt;value&gt;</span><br><span class="line">#</span><br><span class="line"></span><br><span class="line">#*               soft    core            0</span><br><span class="line">#*               hard    rss             10000</span><br><span class="line">#@student        hard    nproc           20</span><br><span class="line">#@faculty        soft    nproc           20</span><br><span class="line">#@faculty        hard    nproc           50</span><br><span class="line">#ftp             hard    nproc           0</span><br><span class="line">#@student        -       maxlogins       4</span><br><span class="line"></span><br><span class="line"># End of file</span><br><span class="line"></span><br><span class="line">root soft nofile 65535   # 新增</span><br><span class="line">root hard nofile 65535</span><br></pre></td></tr></table></figure>
-
-<p>各列意义:</p>
-<p>1: 用户名称，对所有用户则“*”</p>
-<p>2：soft 软限制/hard 硬件限制</p>
-<p>3： 代表最大文件打开数</p>
-<p>4： 数量</p>
-<h5 id="查看所有进程文件打开数"><a href="#查看所有进程文件打开数" class="headerlink" title="查看所有进程文件打开数"></a>查看所有进程文件打开数</h5><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof | wc -l</span><br></pre></td></tr></table></figure>
-
-<h5 id="查看某个进程打开文件数"><a href="#查看某个进程打开文件数" class="headerlink" title="查看某个进程打开文件数"></a>查看某个进程打开文件数</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof  -p [pid] | wc -l</span><br></pre></td></tr></table></figure>
-
-<h5 id="查看系统中各个进程分别打开了多少句柄数"><a href="#查看系统中各个进程分别打开了多少句柄数" class="headerlink" title="查看系统中各个进程分别打开了多少句柄数"></a>查看系统中各个进程分别打开了多少句柄数</h5><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lsof -n|awk '&#123;print $2&#125;'|sort|uniq -c|sort -nr|more</span><br></pre></td></tr></table></figure>
-
-<h4 id="SSH-密钥登录"><a href="#SSH-密钥登录" class="headerlink" title="SSH 密钥登录"></a>SSH 密钥登录</h4><ol>
-<li>生成公钥私钥对，linux下使用 ssh-keygen  命令生成，一路enter</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# ssh-keygen </span><br><span class="line">Generating public/private rsa key pair.</span><br><span class="line">Enter file in which to save the key (/root/.ssh/id_rsa):    # 存放路径</span><br><span class="line">Enter passphrase (empty for no passphrase):                 # 密码</span><br><span class="line">Enter same passphrase again: </span><br><span class="line">Your identification has been saved in /root/.ssh/id_rsa.</span><br><span class="line">Your public key has been saved in /root/.ssh/id_rsa.pub.</span><br><span class="line">The key fingerprint is:</span><br><span class="line">SHA256:N9Q7EJosUhKrKw+Utf5jcSgpg7fzJS5EtVfa5iinWOk root@localhost.localdomain</span><br><span class="line">The key's randomart image is:</span><br><span class="line">+---[RSA 2048]----+</span><br><span class="line">|    o..   .      |</span><br><span class="line">|    .+ ..o o     |</span><br><span class="line">|   oo..++ o .    |</span><br><span class="line">|  +.o.o.o. . .   |</span><br><span class="line">|.+...o.+S o o    |</span><br><span class="line">|oo+++oo... . .   |</span><br><span class="line">|oo+*o++          |</span><br><span class="line">| +=.E=           |</span><br><span class="line">|  .++..          |</span><br><span class="line">+----[SHA256]-----+</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>生成密钥对后，将公钥上传到服务器要登陆的用户 ~/.ssh/authorized_keys</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# cat ~/.ssh/id_rsa.pub </span><br><span class="line">ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCyUOANXFleDWrpJop7zrM2eZxrna8+uIiSbz72IRsAO3intbNkyHJpULv9yYUmT4iPf4Vn4QYmyogFhdpTktKSADBbyH5VXIGyFjbWeO7ix1iVr7YVQQ/4P/nELVytCUiIojFdZ+DvyYSariLzLuliFpYTMJ4jpmgpL/pAUobEazpGwjlRUOWik3+8kLGpsxHYJNUmrZKSnNaOYqDJVGfO3KBfozO+I5B/wcwSW5hje7Y5xyfdDzvuVh7uVmKQbjw3WoMiy64pTcKB1S3tQtPZfXnmOd3tUZU8SXSfcvhHdgrbG6kFBrJwqjpj/sE4zL9nWbSZlbpJD7gXtlkdrAH1 root@localhost.localdomain</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>登录服务器 ~/.ssh/authorized_keys</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@wpspic6 opt]# cat ~/.ssh/authorized_keys</span><br><span class="line">sh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCyUOANXFleDWrpJop7zrM2eZxrna8+uIiSbz72IRsAO3intbNkyHJpULv9yYUmT4iPf4Vn4QYmyogFhdpTktKSADBbyH5VXIGyFjbWeO7ix1iVr7YVQQ/4P/nELVytCUiIojFdZ+DvyYSariLzLuliFpYTMJ4jpmgpL/pAUobEazpGwjlRUOWik3+8kLGpsxHYJNUmrZKSnNaOYqDJVGfO3KBfozO+I5B/wcwSW5hje7Y5xyfdDzvuVh7uVmKQbjw3WoMiy64pTcKB1S3tQtPZfXnmOd3tUZU8SXSfcvhHdgrbG6kFBrJwqjpj/sE4zL9nWbSZlbpJD7gXtlkdrAH1 root@localhost.localdomain</span><br></pre></td></tr></table></figure>
-
-<ol start="4">
-<li><p>测试登录，这里我用的是root</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ssh root@10.226.50.30 </span><br><span class="line">Last login: Tue Sep 17 16:23:57 2019 from 10.226.28.68     # 登录成功</span><br></pre></td></tr></table></figure>
-
-<p>增加-v选项，输出登录过程</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost opt]# ssh root@10.226.50.30 -v</span><br><span class="line">OpenSSH_7.4p1, OpenSSL 1.0.2k-fips  26 Jan 2017</span><br><span class="line">debug1: Reading configuration data /etc/ssh/ssh_config</span><br><span class="line">debug1: /etc/ssh/ssh_config line 58: Applying options for *</span><br><span class="line">debug1: Connecting to 10.226.50.30 [10.226.50.30] port 22.</span><br><span class="line">debug1: Connection established.</span><br><span class="line">debug1: permanently_set_uid: 0/0</span><br><span class="line">debug1: identity file /root/.ssh/id_rsa type 1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_rsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_dsa type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_dsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ecdsa type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ecdsa-cert type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ed25519 type -1</span><br><span class="line">debug1: key_load_public: No such file or directory</span><br><span class="line">debug1: identity file /root/.ssh/id_ed25519-cert type -1</span><br><span class="line">debug1: Enabling compatibility mode for protocol 2.0</span><br><span class="line">debug1: Local version string SSH-2.0-OpenSSH_7.4</span><br><span class="line">debug1: Remote protocol version 2.0, remote software version OpenSSH_7.4</span><br><span class="line">debug1: match: OpenSSH_7.4 pat OpenSSH* compat 0x04000000</span><br><span class="line">debug1: Authenticating to 10.226.50.30:22 as &apos;root&apos;</span><br><span class="line">debug1: SSH2_MSG_KEXINIT sent</span><br><span class="line">debug1: SSH2_MSG_KEXINIT received</span><br><span class="line">debug1: kex: algorithm: curve25519-sha256</span><br><span class="line">debug1: kex: host key algorithm: rsa-sha2-512</span><br><span class="line">debug1: kex: server-&gt;client cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit&gt; compression: none</span><br><span class="line">debug1: kex: client-&gt;server cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit&gt; compression: none</span><br><span class="line">debug1: kex: curve25519-sha256 need=64 dh_need=64</span><br><span class="line">debug1: kex: curve25519-sha256 need=64 dh_need=64</span><br><span class="line">debug1: expecting SSH2_MSG_KEX_ECDH_REPLY</span><br><span class="line">debug1: Server host key: ssh-rsa SHA256:yKoRmi5QgIlXrrhYQcP5W0Mx2PhSoTsm5Z+DhdeYFpU</span><br><span class="line">debug1: Host &apos;10.226.50.30&apos; is known and matches the RSA host key.</span><br><span class="line">debug1: Found key in /root/.ssh/known_hosts:1</span><br><span class="line">debug1: rekey after 134217728 blocks</span><br><span class="line">debug1: SSH2_MSG_NEWKEYS sent</span><br><span class="line">debug1: expecting SSH2_MSG_NEWKEYS</span><br><span class="line">debug1: SSH2_MSG_NEWKEYS received</span><br><span class="line">debug1: rekey after 134217728 blocks</span><br><span class="line">debug1: SSH2_MSG_EXT_INFO received</span><br><span class="line">debug1: kex_input_ext_info: server-sig-algs=&lt;rsa-sha2-256,rsa-sha2-512&gt;</span><br><span class="line">debug1: SSH2_MSG_SERVICE_ACCEPT received</span><br><span class="line">debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic,password</span><br><span class="line">debug1: Next authentication method: gssapi-keyex</span><br><span class="line">debug1: No valid Key exchange context</span><br><span class="line">debug1: Next authentication method: gssapi-with-mic</span><br><span class="line">debug1: Unspecified GSS failure.  Minor code may provide more information</span><br><span class="line">No Kerberos credentials available (default cache: KEYRING:persistent:0)</span><br><span class="line"></span><br><span class="line">debug1: Unspecified GSS failure.  Minor code may provide more information</span><br><span class="line">No Kerberos credentials available (default cache: KEYRING:persistent:0)</span><br><span class="line"></span><br><span class="line">debug1: Next authentication method: publickey</span><br><span class="line">debug1: Offering RSA public key: /root/.ssh/id_rsa</span><br><span class="line">debug1: Server accepts key: pkalg rsa-sha2-512 blen 279</span><br><span class="line">debug1: Authentication succeeded (publickey).</span><br><span class="line">Authenticated to 10.226.50.30 ([10.226.50.30]:22).</span><br><span class="line">debug1: channel 0: new [client-session]</span><br><span class="line">debug1: Requesting no-more-sessions@openssh.com</span><br><span class="line">debug1: Entering interactive session.</span><br><span class="line">debug1: pledge: network</span><br><span class="line">debug1: client_input_global_request: rtype hostkeys-00@openssh.com want_reply 0</span><br><span class="line">debug1: Sending environment.</span><br><span class="line">debug1: Sending env LANG = en_US.UTF-8</span><br><span class="line">Last login: Wed Sep 18 12:00:12 2019 from 10.226.50.31</span><br><span class="line">[root@wpspic6 ~]#</span><br></pre></td></tr></table></figure>
-
-</li>
-</ol>
-<blockquote>
-<ol>
-<li>登录可能失败，可以在ssh命令后增加-v选项查看登录过程；</li>
-<li>如果私钥是从其他地方拷贝，最好将id_rsa.pub也拷贝或者原来的删除，否则会影响登录；</li>
-</ol>
-</blockquote>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/17/redis-install/">redis 安装</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-17T01:22:21.000Z" itemprop="datePublished">2019-09-17</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/redis/">redis</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><ol>
-<li>通过wget直接下载redis源码安装包，目前最新半5.0的</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget http://download.redis.io/releases/redis-5.0.5.tar.gz</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>解压</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar -xvf redis-5.0.5.tar.gz</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>进入源码目录</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cd redis-5.0.5/src</span><br></pre></td></tr></table></figure>
-
-<ol start="4">
-<li>编译</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make &amp;&amp; make install</span><br></pre></td></tr></table></figure>
-
-<h3 id="运行"><a href="#运行" class="headerlink" title="运行"></a>运行</h3><ul>
-<li>安装成功后，配置文件/etc/redis.conf</li>
-</ul>
-<p>默认daemon 为no，ip：127.0.0.1直接运行</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis-server /etc/redis.conf</span><br></pre></td></tr></table></figure>
-
-<p>运行后出现下图，则运行成功：</p>
-<p><img src="/2019/09/17/redis-install/redis-start.png" alt="redis-start"></p>
-<ul>
-<li>访问</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# redis-cli</span><br><span class="line">127.0.0.1:6379&gt; set foo bar</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; keys *</span><br><span class="line">1) &quot;foo&quot;</span><br><span class="line">127.0.0.1:6379&gt;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>修改配置文件，daemon/ip,基本修改，重新运行便可启动了</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"># By default Redis does not run as a daemon. Use &apos;yes&apos; if you need it.</span><br><span class="line"># Note that Redis will write a pid file in /var/run/redis.pid when daemonized.</span><br><span class="line"></span><br><span class="line">daemonize yes</span><br><span class="line"></span><br><span class="line"># Examples:</span><br><span class="line">#</span><br><span class="line"># bind 192.168.1.100 10.0.0.1</span><br><span class="line"># bind 127.0.0.1 ::1</span><br><span class="line">#</span><br><span class="line"># ~~~ WARNING ~~~ If the computer running Redis is directly exposed to the</span><br><span class="line"># internet, binding to all the interfaces is dangerous and will expose the</span><br><span class="line"># instance to everybody on the internet. So by default we uncomment the</span><br><span class="line"># following bind directive, that will force Redis to listen only into</span><br><span class="line"># the IPv4 loopback interface address (this means Redis will be able to</span><br><span class="line"># accept connections only from clients running into the same computer it</span><br><span class="line"># is running).</span><br><span class="line">#</span><br><span class="line"># IF YOU ARE SURE YOU WANT YOUR INSTANCE TO LISTEN TO ALL THE INTERFACES</span><br><span class="line"># JUST COMMENT THE FOLLOWING LINE.</span><br><span class="line"># ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span><br><span class="line"></span><br><span class="line">bind 127.0.0.1</span><br></pre></td></tr></table></figure>
-
-<h3 id="安装过程种可能出现的问题"><a href="#安装过程种可能出现的问题" class="headerlink" title="安装过程种可能出现的问题"></a>安装过程种可能出现的问题</h3><ol>
-<li>centos没有安装gcc，会出现</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">command not found: CC</span><br></pre></td></tr></table></figure>
-
-<p>安装gcc</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install -y gcc</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>make时报如下错误：</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">zmalloc.h:50:31: error: jemalloc/jemalloc.h: No such file or directory</span><br><span class="line">zmalloc.h:55:2: error: #error &quot;Newer version of jemalloc required&quot;</span><br></pre></td></tr></table></figure>
-
-<p>原因是jemalloc重载了Linux下的ANSI C的malloc和free函数。解决办法：make时添加参数。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make MALLOC=libc</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>make之后，会出现一句提示</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Hint: To run &apos;make test&apos; is a good idea ;)</span><br></pre></td></tr></table></figure>
-
-<p>但是不测试，通常是可以使用的。若我们运行make test ，会有如下提示</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">You need tcl 8.5 or newer in order to run the Redis test</span><br><span class="line">make: *** [test] Error 1</span><br></pre></td></tr></table></figure>
-
-<p>解决办法是用yum安装tcl8.5（或去tcl的官方网站<a href="http://www.tcl.tk/下载8.5版本，并参考官网介绍进行安装）" target="_blank" rel="noopener">http://www.tcl.tk/下载8.5版本，并参考官网介绍进行安装）</a></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install tcl</span><br></pre></td></tr></table></figure>
-
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/16/mongodb/">mongodb replset 搭建</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/2/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-16T04:04:59.000Z" itemprop="datePublished">2019-09-16</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/mongodb/">mongodb</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>Mongodb 副本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点或者Arbiter节点。<br>副本集的所有写操作都交给Primary，Secondary从Primary同步oplog到本实例，以保持复制集内所有成员存储相同的数据集，实现数据的高可用。</p>
-<h5 id="常见场景"><a href="#常见场景" class="headerlink" title="常见场景"></a>常见场景</h5><ul>
-<li>数据冗余<br>集群可增加延迟写的节点，防止误操作</li>
-<li>读写分离<br>适合读多写少的业务</li>
-</ul>
-<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><p><img src="/2019/09/16/mongodb/mongo-replset.svg" alt="mongo结构"></p>
-<p>集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定</p>
-<blockquote>
-<p>A replica set can have up to 50 members but only 7 voting members.</p>
-<p>一个集群可以又最多50个节点，但有7个可投票的节点</p>
-</blockquote>
-<h3 id="节点角色"><a href="#节点角色" class="headerlink" title="节点角色"></a>节点角色</h3><ol>
-<li>主节点(primary)</li>
-</ol>
-<p>可接收所有的读写请求；同步oplog到从节点。一个Replica Set只能有一个Primary节点，当Primary挂掉后，其他Secondary或者Arbiter节点会重新选举出来一个主节点。</p>
-<ol start="2">
-<li>副本节点(secondary)</li>
-</ol>
-<p>与主节点保持同样的数据集。当主节点挂掉的时候，参与选主。</p>
-<ol start="3">
-<li>仲裁者(arbiter)</li>
-</ol>
-<p>不保持数据，不可能成为主节点，只进行投票选举主节点。为了打破投票中的偶数个节点的情况，Arbiter几乎没什么大的硬件资源需求.</p>
-<blockquote>
-<p>Do not run an arbiter on systems that also host the primary or the secondary members of the replica set.</p>
-<p>不要把仲裁节点与主节点或者从节点放在一台机器</p>
-</blockquote>
-<h3 id="两种结构"><a href="#两种结构" class="headerlink" title="两种结构"></a>两种结构</h3><ul>
-<li><strong>PSS</strong></li>
-</ul>
-<p>Primary + Secondary + Secondary模式，通过Primary和Secondary搭建的Replica Set</p>
-<p><img src="/2019/09/16/mongodb/PSS.png" alt="PSS"></p>
-<ul>
-<li><strong>PSA</strong></li>
-</ul>
-<p>Primary + Secondary + Arbiter模式，使用Arbiter搭建Replica Set</p>
-<p><img src="/2019/09/16/mongodb/PSA.png" alt="PSA"></p>
-<p>偶数个数据节点，加一个Arbiter构成的Replica Set</p>
-<h4 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h4><p>副本集通过 replSetInitiate 命令或 rs.initiate() 命令进行初始化。</p>
-<p>初始化后各个节点开始发送心跳消息，并发起 Primary 选举操作，获得大多数成员投票支持的节点，会成为 Primary，其余节点成为 Secondary。</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">config = &#123;</span><br><span class="line">    _id : "test_replset",   # 副本集名称</span><br><span class="line">    members : [</span><br><span class="line">        &#123;_id : 0, host : "rs1.example.net:27017"&#125;,      # 节点列表</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">1</span>, <span class="attr">host</span> : <span class="string">"rs2.example.net:27017"</span>&#125;,</span><br><span class="line">        &#123;<span class="attr">_id</span> : <span class="number">2</span>, <span class="attr">host</span> : <span class="string">"rs3.example.net:27017"</span>&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br><span class="line">rs.initiate(config)</span><br></pre></td></tr></table></figure>
-
-<p>假设复制集内投票成员（后续介绍）数量为 N，则大多数为 N/2 + 1，当复制集内存活成员数量不足大多数时，整个复制集将无法选举出 Primary，复制集将无法提供写服务，处于只读状态</p>
-<ul>
-<li><p>Mongodb副本集的选举基于Bully算法，这是一种协调者竞选算法</p>
-</li>
-<li><p>Primary 的选举受节点间心跳、优先级、最新的 oplog 时间等多种因素影响</p>
-</li>
-</ul>
-<h5 id="特殊角色"><a href="#特殊角色" class="headerlink" title="特殊角色"></a><strong>特殊角色</strong></h5><ul>
-<li>Arbiter</li>
-</ul>
-<p>Arbiter 节点只参与投票，不能被选为 Primary，并且不从 Primary 同步数据。</p>
-<ul>
-<li>Priority==0</li>
-</ul>
-<p>Priority0节点的选举优先级为0，不会被选举为 Primary。</p>
-<ul>
-<li>Vote==0</li>
-</ul>
-<p>Mongodb 3.0里，复制集成员最多50个，参与 Primary 选举投票的成员最多7个，其他成员（Vote0）的 vote 属性必须设置为0，即不参与投票。</p>
-<ul>
-<li>Hidden==true</li>
-</ul>
-<p>Hidden 署行的 节点不能被选为primary（Priority 为0），并且对client 不可见。</p>
-<ul>
-<li>Delayed==time seconds</li>
-</ul>
-<p>Delayed 节点必须是 Hidden 节点，否则会出现数据不一致的情况； 其数据落后与 Primary 一段时间（可配置，比如半小时1小时等）</p>
-<h5 id="所有角色"><a href="#所有角色" class="headerlink" title="所有角色"></a>所有角色</h5><table>
-<thead>
-<tr>
-<th><strong>Number</strong></th>
-<th><strong>Name</strong></th>
-<th><strong>State Description</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0</td>
-<td>STARTUP</td>
-<td>还不是集群中的活跃点，读取配置阶段</td>
-</tr>
-<tr>
-<td>1</td>
-<td>PRIMARY</td>
-<td>唯一的写节点</td>
-</tr>
-<tr>
-<td>2</td>
-<td>SECONDARY</td>
-<td>从节点，主节点数据的拷贝</td>
-</tr>
-<tr>
-<td>3</td>
-<td>RECOVERING</td>
-<td>Members either perform startup self-checks, or transition from completing a rollback or resync.</td>
-</tr>
-<tr>
-<td>5</td>
-<td>STARTUP2</td>
-<td>已经加入集群，同步数据</td>
-</tr>
-<tr>
-<td>6</td>
-<td>UNKNOWN</td>
-<td></td>
-</tr>
-<tr>
-<td>7</td>
-<td>ARBITER</td>
-<td>仲裁，投票选举primary</td>
-</tr>
-<tr>
-<td>8</td>
-<td>DOWN</td>
-<td>不可达节点</td>
-</tr>
-<tr>
-<td>9</td>
-<td>ROLLBACK</td>
-<td></td>
-</tr>
-<tr>
-<td>10</td>
-<td>REMOVED</td>
-<td>c曾经再集群，但被移除</td>
-</tr>
-</tbody></table>
-<h5 id="触发选举条件"><a href="#触发选举条件" class="headerlink" title="触发选举条件"></a><strong>触发选举条件</strong></h5><ul>
-<li>新增一个节点到副本集</li>
-<li>初始化一个副本集</li>
-<li>primary放弃角色，如 rs.stepDown()/rs.reconfig()</li>
-<li>从库不能连接到主库(默认超过10s，可通过heartbeatTimeoutSecs参数控制)，由从库发起选举</li>
-</ul>
-<p>副本集的自动failover是通过心跳检测实现的，进而实现高可用</p>
-<p><img src="/2019/09/16/mongodb/mongo-failover.png" alt="mongo-failover"></p>
-<h3 id="读写配置"><a href="#读写配置" class="headerlink" title="读写配置"></a>读写配置</h3><p><strong>Read Preference</strong></p>
-<blockquote>
-<p>All read preference modes except primary may return stale data because secondaries replicate operations from the primary with some delay. Ensure that your application can tolerate stale data if you choose to use a non-primary mode.</p>
-<p>除了primary节点，其他的都有可能读到脏数据。保证你的app能够容忍脏数据</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th><strong>Read Preference Mode</strong></th>
-<th><strong>Description</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>primary</td>
-<td>优先主节点，默认<br><br> Multi-document transactions that contain read operations must use read preference primary. All operations in a given transaction must route to the same member.</td>
-</tr>
-<tr>
-<td>primaryPreferred</td>
-<td>主节点优先，主不可用，读从节点</td>
-</tr>
-<tr>
-<td>secondary</td>
-<td>从节点读取</td>
-</tr>
-<tr>
-<td>secondaryPreferred</td>
-<td>从节点优先，没有从节点可用，读主节点</td>
-</tr>
-<tr>
-<td>nearest</td>
-<td>网络延迟最少的节点，不管主从</td>
-</tr>
-</tbody></table>
-<p><strong>Write Concern</strong></p>
-<blockquote>
-<p>Write concern describes the level of acknowledgment requested from MongoDB for write operations</p>
-<p>写操作的确认</p>
-</blockquote>
-<p>选项如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123; w: &lt;value&gt;, j: &lt;boolean&gt;, wtimeout: &lt;number&gt; &#125;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>w: 写操作已经传播了几个mongod实例</p>
-<p>j: 等待写操作写入磁盘journal</p>
-<p>wtimeout: 写操作阻塞时间</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th>value</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><number></number></td>
-<td>w: 1,默认值（写入主节点）<br>w: 0,不需要确认写操作，可能会抛出异常<br>w: &gt;1,</td>
-</tr>
-<tr>
-<td>majority</td>
-<td>大多数数据可投票节点</td>
-</tr>
-<tr>
-<td><custom write concern name></custom></td>
-<td>写入一个标记的节点</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>Hidden</strong>, <strong>delayed</strong>, and <strong>priority 0</strong> members with member[n].votes greater than 0 can acknowledge majority write operations.</p>
-</blockquote>
-<p><strong>Read Concern</strong>（一致性/隔离性）</p>
-<table>
-<thead>
-<tr>
-<th>level</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>local</td>
-<td></td>
-</tr>
-<tr>
-<td>available</td>
-<td></td>
-</tr>
-<tr>
-<td>marjority</td>
-<td></td>
-</tr>
-<tr>
-<td>linearizable</td>
-<td></td>
-</tr>
-<tr>
-<td>snapshot</td>
-<td></td>
-</tr>
-</tbody></table>
-<h3 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h3><ul>
-<li>db version v4.2.0</li>
-<li>配置文件，复制三份，修改</li>
-</ul>
-<p>path/dbPath/pidFilePath</p>
-<p>bindIp：如果外网，需要将ip绑定为0.0.0.0</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"># for documentation of all options, see:</span><br><span class="line">#   http://docs.mongodb.org/manual/reference/configuration-options/</span><br><span class="line"></span><br><span class="line"># where to write logging data.</span><br><span class="line">systemLog:</span><br><span class="line">  destination: file</span><br><span class="line">  logAppend: true</span><br><span class="line">  path: /var/log/mongodb/mongod-27017.log</span><br><span class="line"></span><br><span class="line"># Where and how to store data.</span><br><span class="line">storage:</span><br><span class="line">  dbPath: /var/lib/mongo-27017</span><br><span class="line">  journal:</span><br><span class="line">    enabled: true</span><br><span class="line">#  engine:</span><br><span class="line">#  wiredTiger:</span><br><span class="line"></span><br><span class="line"># how the process runs</span><br><span class="line">processManagement:</span><br><span class="line">  fork: true  # fork and run in background</span><br><span class="line">  pidFilePath: /var/run/mongodb/mongod-27017.pid  # location of pidfile</span><br><span class="line">  timeZoneInfo: /usr/share/zoneinfo</span><br><span class="line"></span><br><span class="line"># network interfaces</span><br><span class="line">net:</span><br><span class="line">  port: 27017</span><br><span class="line">  bindIp: 127.0.0.1  # Enter 0.0.0.0,:: to bind to all IPv4 and IPv6 addresses or, alternatively, use the net.bindIpAll setting.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#security:</span><br><span class="line"></span><br><span class="line">#operationProfiling:</span><br><span class="line"></span><br><span class="line">replication:</span><br><span class="line">    replSetName: screensaver    # replset名称，同一副本集取值相同</span><br><span class="line">    oplogSizeMB: 4096</span><br><span class="line"></span><br><span class="line">#sharding:</span><br><span class="line"></span><br><span class="line">## Enterprise-Only Options</span><br><span class="line"></span><br><span class="line">#auditLog:</span><br><span class="line"></span><br><span class="line">#snmp:</span><br></pre></td></tr></table></figure>
-
-<p>这里我搞了三个，启动</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /etc/mongod-27017.conf</span><br><span class="line">mongod -f /etc/mongod-27018.conf</span><br><span class="line">mongod -f /etc/mongod-27019.conf</span><br></pre></td></tr></table></figure>
-
-<p>随便进入一个实例：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line">&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(0, 0),</span><br><span class="line">	&quot;ok&quot; : 0,</span><br><span class="line">	&quot;errmsg&quot; : &quot;no replset config has been received&quot;,</span><br><span class="line">	&quot;code&quot; : 94,</span><br><span class="line">	&quot;codeName&quot; : &quot;NotYetInitialized&quot;,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(0, 0),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">&gt; rs.initiate()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;info2&quot; : &quot;no configuration specified. Using a default configuration for the set&quot;,</span><br><span class="line">	&quot;me&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625811, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625811, 1)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:OTHER&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">	&quot;set&quot; : &quot;screensaver&quot;,</span><br><span class="line">	&quot;date&quot; : ISODate(&quot;2019-09-16T09:23:35.861Z&quot;),</span><br><span class="line">	&quot;myState&quot; : 1,</span><br><span class="line">	&quot;term&quot; : NumberLong(1),</span><br><span class="line">	&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">	&quot;syncSourceId&quot; : -1,</span><br><span class="line">	&quot;heartbeatIntervalMillis&quot; : NumberLong(2000),</span><br><span class="line">	&quot;optimes&quot; : &#123;</span><br><span class="line">		&quot;lastCommittedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastCommittedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;readConcernMajorityOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;readConcernMajorityWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;appliedOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;durableOpTime&quot; : &#123;</span><br><span class="line">			&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">			&quot;t&quot; : NumberLong(1)</span><br><span class="line">		&#125;,</span><br><span class="line">		&quot;lastAppliedWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;),</span><br><span class="line">		&quot;lastDurableWallTime&quot; : ISODate(&quot;2019-09-16T09:23:34.040Z&quot;)</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;lastStableRecoveryTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;lastStableCheckpointTimestamp&quot; : Timestamp(1568625814, 4),</span><br><span class="line">	&quot;members&quot; : [</span><br><span class="line">		&#123;</span><br><span class="line">			&quot;_id&quot; : 0,</span><br><span class="line">			&quot;name&quot; : &quot;127.0.0.1:27017&quot;,</span><br><span class="line">			&quot;ip&quot; : &quot;127.0.0.1&quot;,</span><br><span class="line">			&quot;health&quot; : 1,</span><br><span class="line">			&quot;state&quot; : 1,</span><br><span class="line">			&quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">			&quot;uptime&quot; : 19222,</span><br><span class="line">			&quot;optime&quot; : &#123;</span><br><span class="line">				&quot;ts&quot; : Timestamp(1568625814, 4),</span><br><span class="line">				&quot;t&quot; : NumberLong(1)</span><br><span class="line">			&#125;,</span><br><span class="line">			&quot;optimeDate&quot; : ISODate(&quot;2019-09-16T09:23:34Z&quot;),</span><br><span class="line">			&quot;syncingTo&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceHost&quot; : &quot;&quot;,</span><br><span class="line">			&quot;syncSourceId&quot; : -1,</span><br><span class="line">			&quot;infoMessage&quot; : &quot;could not find member to sync from&quot;,</span><br><span class="line">			&quot;electionTime&quot; : Timestamp(1568625811, 2),</span><br><span class="line">			&quot;electionDate&quot; : ISODate(&quot;2019-09-16T09:23:31Z&quot;),</span><br><span class="line">			&quot;configVersion&quot; : 1,</span><br><span class="line">			&quot;self&quot; : true,</span><br><span class="line">			&quot;lastHeartbeatMessage&quot; : &quot;&quot;</span><br><span class="line">		&#125;</span><br><span class="line">	],</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625814, 4),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625814, 4)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt;</span><br></pre></td></tr></table></figure>
-
-<p>初始化后，该实例成为primary，单机实例，增加其他节点</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">screensaver:PRIMARY&gt; rs.add(&apos;127.0.0.1:27018&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625914, 2),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625914, 2)</span><br><span class="line">&#125;</span><br><span class="line">screensaver:PRIMARY&gt; rs.addArb(&apos;127.0.0.1:27019&apos;)</span><br><span class="line">&#123;</span><br><span class="line">	&quot;ok&quot; : 1,</span><br><span class="line">	&quot;$clusterTime&quot; : &#123;</span><br><span class="line">		&quot;clusterTime&quot; : Timestamp(1568625931, 1),</span><br><span class="line">		&quot;signature&quot; : &#123;</span><br><span class="line">			&quot;hash&quot; : BinData(0,&quot;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&quot;),</span><br><span class="line">			&quot;keyId&quot; : NumberLong(0)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;,</span><br><span class="line">	&quot;operationTime&quot; : Timestamp(1568625931, 1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>至此， PSA 模式的集群已经创建成功</p>
 
         
     </section>
