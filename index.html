@@ -127,6 +127,62 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2024/05/22/leetcode无重复字符串的最大长度/">Leetcode之无重复字符串的最长子串</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2024-05-22T13:35:20.000Z" itemprop="datePublished">2024-05-22</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">给定一个字符串 s ，请你找出其中不含有重复字符的 最长 子串 的长度。</span><br></pre></td></tr></table></figure>
+
+<h4 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">示例 1:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;abcabcbb&quot;</span><br><span class="line">输出: 3 </span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;abc&quot;，所以其长度为 3。</span><br><span class="line">示例 2:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;bbbbb&quot;</span><br><span class="line">输出: 1</span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;b&quot;，所以其长度为 1。</span><br><span class="line">示例 3:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;pwwkew&quot;</span><br><span class="line">输出: 3</span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;wke&quot;，所以其长度为 3。</span><br><span class="line">     请注意，你的答案必须是 子串 的长度，&quot;pwke&quot; 是一个子序列，不是子串。</span><br></pre></td></tr></table></figure>
+
+<h4 id="暴力解法"><a href="#暴力解法" class="headerlink" title="暴力解法"></a>暴力解法</h4><p>这个题最容易想到的还是暴力解法，既然要找最大的子串， 我就从头开始一个一个找。</p>
+<p>固定子串的左边界，右边界往右移动，逐个往子串中添加字符，直到子串中已经存在字符，这时找到一个最大子串不重复的子串 记录长度；左边界右移一个字符，继续操作，不断替换最大值。</p>
+<p>这里的时间复杂度是 O(n2)</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstr 无重复子串的最大长度 1. 暴力之美</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstr</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxStr := <span class="string">""</span></span><br><span class="line">	cur := <span class="number">0</span></span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> strings.Index(maxStr, <span class="keyword">string</span>(str[index])) != <span class="number">-1</span> &#123; <span class="comment">// 找到了， 回退并且置空</span></span><br><span class="line">			maxStr = <span class="string">""</span></span><br><span class="line">			index = cur     <span class="comment">// 继续查找下一个位置开始的子串</span></span><br><span class="line">			cur = index + <span class="number">1</span> <span class="comment">// 记录当前子串的起始位置</span></span><br><span class="line">		&#125; <span class="keyword">else</span> &#123; <span class="comment">// 无重复 直接增加</span></span><br><span class="line">			maxStr += <span class="keyword">string</span>(str[index])</span><br><span class="line">			<span class="keyword">if</span> maxLen &lt; <span class="built_in">len</span>(maxStr) &#123;</span><br><span class="line">				maxLen = <span class="built_in">len</span>(maxStr)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>#### </p>
+<h4 id="回溯的位置待查找"><a href="#回溯的位置待查找" class="headerlink" title="回溯的位置待查找"></a>回溯的位置待查找</h4><p>暴力解法在于，每次都重新开始匹配下一个位置，没有利用上次匹配到的位置，假如abcac 匹配到第二个a的时候，要重新从b开始匹配。</p>
+<p>实际并不需要，abc是无重复的，后面的a已经重复了，我们只需要在abc中找到 a 重复的位置，把他之前的子串去掉，继续往后匹配.</p>
+<p>比如abc 匹配到 a的时候 重复了，bca不重复继续往后匹配。时间复杂度 O(N)</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstrV1 无重复子串的最大长度 利用已经比较的最大子串</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstrV1</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxStr := <span class="string">""</span></span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> strings.Index(maxStr, <span class="keyword">string</span>(str[index])) != <span class="number">-1</span> &#123; <span class="comment">// 找到了，去掉最左边的字符，继续查找</span></span><br><span class="line">			<span class="comment">// i..j 如果是最大不重复的，那么i+1...j 不可能是最大的</span></span><br><span class="line">			<span class="comment">// 直接将左边的去掉 看j+1是否在子串 逐个去掉左边的字符</span></span><br><span class="line">			maxStr = maxStr[<span class="number">1</span>:] <span class="comment">// 去掉最左边的字符</span></span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">    <span class="comment">// 以上for循环可等价于</span></span><br><span class="line">    <span class="comment">// pos := strings.Index(maxStr, string(str[index]))</span></span><br><span class="line">		<span class="comment">// if pos != -1 &#123;</span></span><br><span class="line">		<span class="comment">// 	maxStr = maxStr[pos+1:]</span></span><br><span class="line">		<span class="comment">// &#125;</span></span><br><span class="line">    </span><br><span class="line">		<span class="comment">// j+1不在子串了</span></span><br><span class="line">		maxStr += <span class="keyword">string</span>(str[index])</span><br><span class="line">		<span class="keyword">if</span> maxLen &lt; <span class="built_in">len</span>(maxStr) &#123;</span><br><span class="line">			maxLen = <span class="built_in">len</span>(maxStr)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个在匹配的时候 还是会遍历查找maxStr 中是否包含字符，这里做个改进</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstrV2 无重复子串的最大长度 利用已经比较的最大子串</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstrV2</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	strMap := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">byte</span>]<span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">	rk := <span class="number">-1</span> <span class="comment">// 初始化 rk 为左边的</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> index != <span class="number">0</span> &#123;</span><br><span class="line">			<span class="built_in">delete</span>(strMap, str[index<span class="number">-1</span>]) <span class="comment">// 存在重复的 就去掉左边</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> rk+<span class="number">1</span> &lt; <span class="built_in">len</span>(str) &#123;</span><br><span class="line">			<span class="keyword">if</span> _, ok := strMap[str[rk+<span class="number">1</span>]]; !ok &#123; <span class="comment">// 不重复就放入 并且指针后移</span></span><br><span class="line">				strMap[str[rk+<span class="number">1</span>]] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">				rk += <span class="number">1</span></span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		maxLen = max(maxLen, rk-index+<span class="number">1</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里只是把字符串换成了 map，查找的时候不用遍历.</p>
+<p>后来看别人总结，才发现 这个方法叫做 滑动窗口，维护一个窗口，上面的代码实现 就是 maxStr 或者strMap 窗口中出现过的字符，就逐步缩小左边窗口，之后继续扩大右边窗口。</p>
+<p>不管叫什么字符串匹配 优化方法 都是从已经匹配的子串中，继续往后操作，就是利用前面的匹配，不能每次都重新开始。</p>
+<p>一晚上一个算法， 真是衰🐶。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2024/05/21/leetcode三数之和/">Leetcode之三数之和</a>
         </h1>
         
@@ -752,317 +808,6 @@
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// @params desc: contains a description of the stream</span></span><br><span class="line"><span class="comment">// @params cc: the ClientConn on which the RPC was invoked</span></span><br><span class="line"><span class="comment">// @params method: the RPC name</span></span><br><span class="line"><span class="comment">// @params streamer: the handler to create a ClientStream and it is the responsibility of the interceptor to call it</span></span><br><span class="line"><span class="comment">// @params opts: the option</span></span><br><span class="line"><span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, desc *StreamDesc, cc *ClientConn, method <span class="keyword">string</span>, streamer Streamer, opts ...CallOption)</span> <span class="params">(ClientStream, error)</span></span></span><br></pre></td></tr></table></figure>
 
 <p>以上即为Golang的拦截器实现，可以分为服务端与客户端的拦截器，两端分别有流式拦截器与普通接口拦截器，在使用的时候可根据自己的业务需求实现。</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2021/01/26/ElasticSearch基本操作/">初识ElasticSearch</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2021-01-26T05:19:59.000Z" itemprop="datePublished">2021-01-26</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/service/">service</a>, <a class="article-tag-link" href="/tags/日志处理/">日志处理</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h3 id="What-is-ElasticSearch"><a href="#What-is-ElasticSearch" class="headerlink" title="What is ElasticSearch"></a>What is ElasticSearch</h3><p>先搬一个官网的定义。</p>
-<blockquote>
-<p>Elasticsearch is a real-time, distributed storage, search, and analytics engine</p>
-</blockquote>
-<p>Elasticsearch 是一个<strong>实时</strong>的<strong>分布式存储、搜索、分析</strong>的引擎。</p>
-<p>要想了解它是什么，首先得看他能干什么，概念很清晰： 分布式存储/搜索/分析引擎。</p>
-<ol>
-<li>看这些概念，咋一看，数据库也都可以做到。</li>
-</ol>
-<ul>
-<li>分布式存储 - 数据库也可以有主从集群模式</li>
-<li>搜索 - 数据库也可以用like %% 来查找</li>
-</ul>
-<p>的确，这样做的确可以， mysql也支持全文检索。但是有个问题： like %%  是不走索引的，这就意味着： 数据量非常大的时候，我们的查询肯定是秒级的。</p>
-<ol start="2">
-<li>我还想提一个概念： <strong>全文检索</strong></li>
-</ol>
-<p>类似搜索引擎，输入往往是多种多样的，不同的人有不同的表达方式，但实际 都是一个含义，数据库的准确性不高，效率低下，高并发下，数据库会被拖垮。</p>
-<p>ElasticSearch 是专门做搜索的，就是为了在理解用户输入语义并高效搜索匹配度高的文档记录。</p>
-<h3 id="Elasticsearch基本概念"><a href="#Elasticsearch基本概念" class="headerlink" title="Elasticsearch基本概念"></a>Elasticsearch基本概念</h3><ul>
-<li>近实时(NRT)</li>
-</ul>
-<p>ElasticSearch是基于Lucene库的，Lucene数据只有刷新到磁盘，才可以被检索到，内存缓存中的数据只有刷新到磁盘才可以被检索。ElasticSearch默认是每秒刷新一次，也就是文档的变化会在一秒之后可见。因此近实时搜索。也可根据自己的需求设置刷新频率。</p>
-<p><img src="https://www.elastic.co/guide/cn/elasticsearch/guide/current/images/elas_1104.png" alt="A Lucene index with new documents in the in-memory buffer"></p>
-<ul>
-<li>集群(Cluster)</li>
-</ul>
-<p>海量数据单机无法存储，就需要使用集群，将多个节点组织在一起，共同维护所有数据，共同提供索引和搜索功能。</p>
-<ul>
-<li>节点(node)</li>
-</ul>
-<p>一个节点就是集群中的一个服务器，存储部分数据，参与索引与搜索。</p>
-<ul>
-<li>分片(<strong>shards &amp; replicas</strong>) </li>
-</ul>
-<p>一个索引可以存储超出单个结点硬件限制的大量数据，为了解决这个问题，Elasticsearch提供了将索引划分成多份的能力，这些份就叫做分片。为保证单点故障，一个分片会保存不止一份，可分为一个<strong>主分片(primary shard)</strong>与多个*<em>复制分片(replica shard) *</em>，复制分片的数量可动态调整，复制分片也可用来提升系统 的读性能。</p>
-<ul>
-<li>文档(Document)</li>
-</ul>
-<p>一个文档是一个可被索引的基础信息单元。文档以JSON（Javascript Object Notation）格式来表示。</p>
-<ul>
-<li>索引(index)</li>
-</ul>
-<p>一个索引就是一个拥有几分相似特征的文档的集合。</p>
-<ul>
-<li>索引类型(type)</li>
-</ul>
-<p>索引类型是在一个索引中，不同类型的数据类型。一条文档中有(<em>type</em>)字段用来区分索引类型，es7.x以上取消同一个索引中存在不同索引类型的数据，也就是说，(<em>_type</em>)字段固定，默认为_doc。</p>
-<p>如下，在7.x之前的ES可以在一个索引中创建不同索引类型的数据:</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST localhost:9200/indexname/typename -H 'Content-Type:application/json' -d '&#123;"data": 1234&#125;'</span><br></pre></td></tr></table></figure>
-
-<h3 id="ElasticSearch-RestFul-API"><a href="#ElasticSearch-RestFul-API" class="headerlink" title="ElasticSearch  RestFul API"></a>ElasticSearch  RestFul API</h3><p>ES对外提供RestFul API来读写集群，设置集群，获取集群状态操作。</p>
-<h4 id="集群状态API"><a href="#集群状态API" class="headerlink" title="集群状态API"></a>集群状态API</h4><ul>
-<li><p>集群状态 </p>
-<p>GET /_cluster/health</p>
-</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200/_cluster/health --user xx:xxxx</span><br><span class="line">&#123;</span><br><span class="line">  "cluster_name" : "es",</span><br><span class="line">  "status" : "green",</span><br><span class="line">  "timed_out" : false,</span><br><span class="line">  "number_of_nodes" : 2,</span><br><span class="line">  "number_of_data_nodes" : 2,</span><br><span class="line">  "active_primary_shards" : 1216,</span><br><span class="line">  "active_shards" : 2432,</span><br><span class="line">  "relocating_shards" : 0,</span><br><span class="line">  "initializing_shards" : 0,</span><br><span class="line">  "unassigned_shards" : 0,</span><br><span class="line">  "delayed_unassigned_shards" : 0,</span><br><span class="line">  "number_of_pending_tasks" : 0,</span><br><span class="line">  "number_of_in_flight_fetch" : 0,</span><br><span class="line">  "task_max_waiting_in_queue_millis" : 0,</span><br><span class="line">  "active_shards_percent_as_number" : 100.0</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>集群节点列表</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200/_cat/nodes?v --user xxx:xxxx</span><br><span class="line">ip            heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name</span><br><span class="line">9.135.145.82            25          92   0    0.10    0.13     0.21 cdfhilmrstw *      es-node0</span><br><span class="line">9.135.91.111            21          99   0    0.01    0.07     0.08 cdfhilmrstw -      es-node1</span><br><span class="line">9.135.170.150           48          36   2    0.38    0.33     0.26 cdfhilmrstw -      es-node2</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>集群健康状态</li>
-</ul>
-<p>结果与_cluster/health一致</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">curl --user elastic:4j243cNvO1770iCs http://10.1.1.45:9200/_cat/health?v</span><br><span class="line"></span><br><span class="line">epoch      timestamp cluster     status node.total node.data shards  pri relo init unassign pending_tasks max_task_wait_time active_shards_percent</span><br><span class="line">1620725415 09:30:15  es-nnx25yd7 green          11         8   4632 2316    0    0        0             0                  -                100.0%</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>节点分配资源状态</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl --user elastic:4j243cNvO1770iCs http://10.1.1.45:9200/_cat/allocation?v</span><br><span class="line"></span><br><span class="line">shards    disk.indices      disk.used      disk.avail      disk.total      disk.percent      　　host              　　 ip            　　　　node</span><br><span class="line">　9 　　 38.8mb 　　　　 9.1gb 　　　 8.6gb 　　 17.7gb 　　　　 51    　　192.168.2.114 　　 192.168.2.114 　　   node-1</span><br><span class="line">　9 　　 38.8mb 　　　　 4.7gb 　　　 13gb 　　  17.7gb 　　　　 26 　　   192.168.2.116 　　 192.168.2.116 　　   node-2</span><br></pre></td></tr></table></figure>
-
-<h4 id="索引文档操作"><a href="#索引文档操作" class="headerlink" title="索引文档操作"></a>索引文档操作</h4><ul>
-<li>索引列表 </li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200/_cat/indices?pretty --user xx:xxxx</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>查看索引的设置</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200/[index_name]/_settings</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>查看索引映射 </li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200/[index_name]/_mapping  --user xx:xxx</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>创建索引</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">curl -H &quot;Content-Type: application/json&quot; -XPUT localhost:9200/blogs -d &apos;</span><br><span class="line">&#123;</span><br><span class="line">    &quot;settings&quot;: &#123;</span><br><span class="line">        &quot;number_of_shards&quot;: 3,    # 主分片</span><br><span class="line">        &quot;number_of_replicas&quot;: 1   # 副本分片</span><br><span class="line">    &#125;</span><br><span class="line">&#125;&apos;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<ol>
-<li>主分片在索引创建以后就固定了，不可更改，如要修改可重建索引，将数据reindex过去；</li>
-<li>副本分片最大值是 n-1(n为节点个数)，复制分片可随时修改个数</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> curl -H "Content-Type: application/json" -XPUT localhost:9200/blogs/_settings -d '</span><br><span class="line"><span class="meta">&gt;</span> &#123;</span><br><span class="line"><span class="meta">&gt;</span>     "number_of_replicas": 2</span><br><span class="line"><span class="meta">&gt;</span> &#125;'</span><br><span class="line"><span class="meta">&gt;</span></span><br></pre></td></tr></table></figure>
-</blockquote>
-<ul>
-<li>reIndex操作</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">curl -H "Content-Type: application/json" -XPOST localhost:9200/_reindex -d '</span><br><span class="line">&#123;</span><br><span class="line">    "source": &#123;</span><br><span class="line">        "index": "accesslog"</span><br><span class="line">    &#125;,</span><br><span class="line">    "dest": &#123;</span><br><span class="line">        "index": "newlog"</span><br><span class="line">    &#125;  </span><br><span class="line">&#125;'</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>删除索引</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -H &quot;Content-Type: application/json&quot; -XDELETE localhost:9200/[indexname]</span><br></pre></td></tr></table></figure>
-
-<h4 id="查询文档操作"><a href="#查询文档操作" class="headerlink" title="查询文档操作"></a>查询文档操作</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">POST http://localhost:9200/indexname/_search</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>查看所有</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://localhost:9200/indexname/_search -H "Content-Type:application/json" -d '&#123;"query":&#123;"match_all":&#123;&#125; &#125; &#125;'</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>精确匹配（price=549的数据）</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://localhost:9200/indexname/_search -H "Content-Type:application/json" -d '&#123;"query":&#123;"constant_score":&#123;"filter":&#123;"term":&#123;"price":549&#125; &#125; &#125; &#125; &#125;'</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>term query(title=”java”)</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://localhost:9200/indexname/_search -H "Content-Type:application/json" -d '&#123;"query":&#123;"term":&#123;"title":"java"&#125; &#125; &#125;'</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>分词查询</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://localhost:9200/indexname/_search -H "Content-Type:application/json" -d '&#123;"query":&#123;"match":&#123;"title":"Core Java"&#125; &#125; &#125;'</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>分词查询(全匹配)</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://localhost:9200/indexname/_search -H "Content-Type:application/json" -d </span><br><span class="line">'&#123;"query":&#123;"match":&#123;"title":&#123;"query":"Core Java", "operator":"and"&#125; &#125; &#125; &#125;'</span><br></pre></td></tr></table></figure>
-
-<h3 id="索引模板"><a href="#索引模板" class="headerlink" title="索引模板"></a>索引模板</h3><ul>
-<li>dynamic template </li>
-</ul>
-<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">"dynamic_templates": [</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="attr">"my_template_name"</span>: &#123; </span><br><span class="line">        ...  match conditions ... </span><br><span class="line">        "mapping": &#123; ... &#125;    # match field use mappings</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    ...</span><br><span class="line">  ]</span><br><span class="line"># The match conditions can include any of : match_mapping_type, match, match_pattern, unmatch, path_match, path_unmatch.</span><br></pre></td></tr></table></figure>
-
-<ol>
-<li>match_mapping_type</li>
-</ol>
-<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">put myIndex </span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"mappings"</span>: &#123;</span><br><span class="line">    <span class="attr">"my_type"</span>: &#123;</span><br><span class="line">      <span class="attr">"dynamic_templates"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">          "integers": &#123;       # template name</span><br><span class="line">            "match_mapping_type": "long",   # all fileld value long type</span><br><span class="line">            "mapping": &#123;</span><br><span class="line">              "type": "integer"      # recognate it as integer</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"string_not_analyzed"</span>: &#123;</span><br><span class="line">            "match_mapping_type": "string",   # match all string filed</span><br><span class="line">            "mapping": &#123;</span><br><span class="line">              "type": "string",</span><br><span class="line">              "fields": &#123;</span><br><span class="line">                "raw": &#123;</span><br><span class="line">                  "type":  "string",</span><br><span class="line">                  "index": "not_analyzed",</span><br><span class="line">                  "ignore_above": 256</span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ]</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>match and unmatch</li>
-</ol>
-<p>match和unmatch定义应用于filedname的pattern。</p>
-<p>定义一个匹配所有以long_开头且不以_text结束的string类型的模板</p>
-<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">PUT my_index</span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">"mappings"</span>: &#123;</span><br><span class="line">    <span class="attr">"my_type"</span>: &#123;</span><br><span class="line">      <span class="attr">"dynamic_templates"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"longs_as_strings"</span>: &#123;</span><br><span class="line">            <span class="attr">"match_mapping_type"</span>: <span class="string">"string"</span>,</span><br><span class="line">            <span class="attr">"match"</span>:   <span class="string">"long_*"</span>,</span><br><span class="line">            <span class="attr">"unmatch"</span>: <span class="string">"*_text"</span>,</span><br><span class="line">            <span class="attr">"mapping"</span>: &#123;</span><br><span class="line">              <span class="attr">"type"</span>: <span class="string">"long"</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ]</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>example</li>
-</ul>
-<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line">curl -XPOST http://10.1.1.12:9200/_template/default@template --user elastic:b6fBNAapGEcYz2dt -H "Content-Type:application/json" -d '&#123;</span><br><span class="line">    "order" : 1,</span><br><span class="line">    "index_patterns" : [</span><br><span class="line">      <span class="string">"*"</span></span><br><span class="line">    ],</span><br><span class="line">    "settings" : &#123;</span><br><span class="line">      "index" : &#123;</span><br><span class="line">        "max_result_window" : "65536",</span><br><span class="line">        "refresh_interval" : "30s",</span><br><span class="line">        "unassigned" : &#123;</span><br><span class="line">          "node_left" : &#123;</span><br><span class="line">            "delayed_timeout" : "5m"</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        "translog" : &#123;</span><br><span class="line">          "sync_interval" : "5s",</span><br><span class="line">          "durability" : "async"</span><br><span class="line">        &#125;,</span><br><span class="line">        "number_of_replicas" : "1"</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    "mappings" : &#123;</span><br><span class="line">      "dynamic_templates" : [</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"message_full"</span> : &#123;</span><br><span class="line">            <span class="attr">"mapping"</span> : &#123;</span><br><span class="line">              <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">              <span class="attr">"fields"</span> : &#123;</span><br><span class="line">                <span class="attr">"keyword"</span> : &#123;</span><br><span class="line">                  <span class="attr">"ignore_above"</span> : <span class="number">2048</span>,</span><br><span class="line">                  <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"match"</span> : <span class="string">"message_full"</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"msg"</span> : &#123;</span><br><span class="line">            <span class="attr">"mapping"</span> : &#123;</span><br><span class="line">              <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">              <span class="attr">"fields"</span> : &#123;</span><br><span class="line">                <span class="attr">"keyword"</span> : &#123;</span><br><span class="line">                  <span class="attr">"ignore_above"</span> : <span class="number">2048</span>,</span><br><span class="line">                  <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"match_pattern"</span>: <span class="string">"regex"</span>,</span><br><span class="line">            <span class="attr">"match"</span> : <span class="string">"msg|pl_message|json"</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"payload_data"</span> : &#123;</span><br><span class="line">            <span class="attr">"mapping"</span> : &#123;</span><br><span class="line">              <span class="attr">"type"</span> : <span class="string">"text"</span>,</span><br><span class="line">              <span class="attr">"fields"</span> : &#123;</span><br><span class="line">                <span class="attr">"keyword"</span> : &#123;</span><br><span class="line">                  <span class="attr">"ignore_above"</span> : <span class="number">2048</span>,</span><br><span class="line">                  <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">                &#125;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"match"</span> : <span class="string">"*payload"</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"message"</span> : &#123;</span><br><span class="line">            <span class="attr">"mapping"</span> : &#123;</span><br><span class="line">              <span class="attr">"type"</span> : <span class="string">"text"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"match"</span> : <span class="string">"message"</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="attr">"strings"</span> : &#123;</span><br><span class="line">            <span class="attr">"mapping"</span> : &#123;</span><br><span class="line">              <span class="attr">"type"</span> : <span class="string">"keyword"</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="attr">"match_mapping_type"</span> : <span class="string">"string"</span></span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      ]</span><br><span class="line">    &#125;,</span><br><span class="line">    "aliases" : &#123; &#125;</span><br><span class="line">  &#125;'</span><br></pre></td></tr></table></figure>
-
-<h3 id="快照"><a href="#快照" class="headerlink" title="快照"></a>快照</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># register a snapshot repository</span><br><span class="line">PUT /_snapshot/my_fs_backup</span><br><span class="line">&#123;</span><br><span class="line">    &quot;type&quot;: &quot;fs&quot;,</span><br><span class="line">    &quot;settings&quot;: &#123;</span><br><span class="line">        &quot;location&quot;: &quot;/opt/backup_es&quot;,</span><br><span class="line">        &quot;compress&quot;: true</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>location:my_fs_backup_location 路径必须先在elasticsearch.yaml中配置path.repo</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">path.repo: /opt/backup_es</span><br></pre></td></tr></table></figure>
-
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>location</code></td>
-<td>Location of the snapshots. Mandatory.</td>
-</tr>
-<tr>
-<td><code>compress</code></td>
-<td>Turns on compression of the snapshot files. Compression is applied only to metadata files (index mapping and settings). Data files are not compressed. Defaults to <code>true</code>.</td>
-</tr>
-<tr>
-<td><code>chunk_size</code></td>
-<td>Big files can be broken down into chunks during snapshotting if needed. Specify the chunk size as a value and unit, for example: <code>1GB</code>, <code>10MB</code>, <code>5KB</code>, <code>500B</code>. Defaults to <code>null</code> (unlimited chunk size).</td>
-</tr>
-<tr>
-<td><code>max_restore_bytes_per_sec</code></td>
-<td>Throttles per node restore rate. Defaults to <code>40mb</code> per second.</td>
-</tr>
-<tr>
-<td><code>max_snapshot_bytes_per_sec</code></td>
-<td>Throttles per node snapshot rate. Defaults to <code>40mb</code> per second.</td>
-</tr>
-<tr>
-<td><code>readonly</code></td>
-<td>Makes repository read-only. Defaults to <code>false</code>.</td>
-</tr>
-</tbody></table>
-<h4 id="快照策略"><a href="#快照策略" class="headerlink" title="快照策略"></a>快照策略</h4><p>SLM</p>
-<h4 id="elastic设置密码"><a href="#elastic设置密码" class="headerlink" title="elastic设置密码"></a>elastic设置密码</h4><p>elasticsearch.yml增加如下配置</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">xpack.security.enabled:</span> <span class="literal">true</span></span><br><span class="line"><span class="string">xpack.license.self_generated.type:</span> <span class="string">basic</span></span><br><span class="line"><span class="string">xpack.security.transport.ssl.enabled:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
-
-<p>重新启动es， 执行</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/elasticsearch-setup-passwords interactive</span><br></pre></td></tr></table></figure>
-
-<p>这里需要为4个用户分别设置密码，elastic, kibana, logstash_system,beats_system，交互输入密码。</p>
-<p>修改密码：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -H "Content-Type:application/json" -XPOST -u elastic 'http://127.0.0.1:9200/_xpack/security/user/elastic/_password' -d '&#123; "password" : "123456" &#125;'</span><br></pre></td></tr></table></figure>
-
-<h3 id="索引选项"><a href="#索引选项" class="headerlink" title="索引选项"></a>索引选项</h3><h4 id="index-refresh-interval"><a href="#index-refresh-interval" class="headerlink" title="index.refresh_interval"></a>index.refresh_interval</h4><p>数据索引后并不会马上搜索到，需要刷新后才能被搜索的，这个选项设置索引后多久会被搜索到。</p>
-<h4 id="index-translog"><a href="#index-translog" class="headerlink" title="index.translog"></a>index.translog</h4><ul>
-<li>sync_interval</li>
-<li>durability</li>
-</ul>
-<h4 id="Why-yellow"><a href="#Why-yellow" class="headerlink" title="Why yellow"></a>Why yellow</h4><ul>
-<li>多数据节点故障</li>
-<li>为索引使用损坏的或红色的分区</li>
-<li>高 JVM 内存压力或 CPU 利用率</li>
-<li>磁盘空间不足</li>
-</ul>
-<h4 id="Fix-yellow"><a href="#Fix-yellow" class="headerlink" title="Fix yellow"></a>Fix yellow</h4><ol>
-<li>列出未分配的分区</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XGET 'localhost:9200/_cat/shards?h=index,shard,prirep,state,unassigned.reason' | grep UNASSIGNED</span><br></pre></td></tr></table></figure>
-
-<p>输出：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">xxxxx                             0 r UNASSIGNED INDEX_CREATED</span><br><span class="line">yyyyy                             0 r UNASSIGNED INDEX_CREATED</span><br><span class="line">zzzzz              								0 r UNASSIGNED INDEX_CREATED</span><br><span class="line">rrrrr										          0 r UNASSIGNED INDEX_CREATED</span><br></pre></td></tr></table></figure>
-
-<p>展示出所有未分配的分片的列表</p>
-<ol start="2">
-<li>检索为什么未分配</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XGET &apos;localhost:9200/_cluster/allocation/explain?pretty&apos; -H &apos;Content-Type:application/json&apos; -d&apos;&#123;&quot;index&quot;: &quot;xxxxx&quot;, &quot;shard&quot;: 0, &quot;primary&quot;:false&#125;&apos;</span><br></pre></td></tr></table></figure>
-
-<p>输出：(未记录输出)</p>
-<p>会给出集群中所有节点不能分配的原因。</p>
-<ol start="3">
-<li>解决</li>
-</ol>
-<p>如果是磁盘空间不足，删除不必要的索引。对于其他原因，可根据情况解决不能分配的原因。比如下面几个常见的原因。</p>
-<p>a.  cluster.max_shards_per_node默认为1000，节点分片已经达到最大。</p>
-<p>b. 磁盘空间达到配置的阈值，比如磁盘已经达到80%，不会继续分配分片。</p>
-<p>c. 分片设置的节点必须是hot节点。</p>
-<p>可通过如下接口查看当前磁盘分配配置：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XGET _cluster/settings?include_defaults=true&amp;flat_settings=true&amp;pretty</span><br></pre></td></tr></table></figure>
-
-<p>输出(输出太多截取一部分)：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;persistent&quot; : &#123;</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.flood_stage&quot; : &quot;95%&quot;,</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.high&quot; : &quot;90%&quot;,</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.low&quot; : &quot;85%&quot;</span><br><span class="line">  &#125;,</span><br><span class="line">  &quot;transient&quot; : &#123;</span><br><span class="line">    &quot;cluster.max_shards_per_node&quot; : &quot;10000&quot;,</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.flood_stage&quot; : &quot;95%&quot;,</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.high&quot; : &quot;90%&quot;,</span><br><span class="line">    &quot;cluster.routing.allocation.disk.watermark.low&quot; : &quot;85%&quot;</span><br><span class="line">  &#125;,</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
-
-<h3 id="索引生存周期-ILM"><a href="#索引生存周期-ILM" class="headerlink" title="索引生存周期(ILM)"></a>索引生存周期(ILM)</h3><p>适用于单索引并不断增长，可设置ILM rollover，根据大小或者文档条数拆分.</p>
-<p>对于按天索引，可配置删除阶段规则.</p>
-<ol>
-<li><p>创建ILM策略(hot/warm/cold/delete)</p>
-</li>
-<li><p>创建索引模板，指定ILM的范围</p>
-</li>
-<li><p>创建rollover的索引，名称末尾要是数字，这样rollover就会+1， 如：carlshi-00001;配置is_write_index选项</p>
-</li>
-<li><p>原索引写入数据</p>
-</li>
-</ol>
-<p>For Example:</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 创建索引模板</span><br><span class="line">PUT /_template/carl_template</span><br><span class="line">&#123;</span><br><span class="line">  "index_patterns": [  # 匹配的索引名称</span><br><span class="line">    "carl-*"</span><br><span class="line">  ],</span><br><span class="line">  "settings": &#123;</span><br><span class="line">      "refresh_interval": "30s",</span><br><span class="line">      "number_of_shards": "1",</span><br><span class="line">      "number_of_replicas": "0"</span><br><span class="line">  &#125;,</span><br><span class="line">  "mappings": &#123;   # mapping</span><br><span class="line">    "properties": &#123;</span><br><span class="line">      "name": &#123;</span><br><span class="line">        "type": "keyword"</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>创建索引：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 创建第一个索引</span><br><span class="line">PUT /carlshi-000001</span><br><span class="line">&#123;</span><br><span class="line">  "aliases": &#123;</span><br><span class="line">    "carlshi-index": &#123;        # 索引alias，写入carlshi-index的都会写入carlshi-00001</span><br><span class="line">      "is_write_index": true</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="elasticsearch-docker"><a href="#elasticsearch-docker" class="headerlink" title="elasticsearch docker"></a>elasticsearch docker</h3><p>直接运行elasticsearch，会自动拉去镜像并执行；</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" elasticsearch:7.5.1 -v /usr/share/elasticsearch/data:/usr/share/elasticsearch/data</span><br></pre></td></tr></table></figure>
-
-<p>运行成功后，执行curl，获取基本信息</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">curl localhost:9200</span><br><span class="line">&#123;</span><br><span class="line">  "name" : "be856c56d8bd",</span><br><span class="line">  "cluster_name" : "docker-cluster",</span><br><span class="line">  "cluster_uuid" : "bsnwunE2SnWcBIqoxbgnUw",</span><br><span class="line">  "version" : &#123;</span><br><span class="line">    "number" : "7.5.1",</span><br><span class="line">    "build_flavor" : "default",</span><br><span class="line">    "build_type" : "docker",</span><br><span class="line">    "build_hash" : "3ae9ac9a93c95bd0cdc054951cf95d88e1e18d96",</span><br><span class="line">    "build_date" : "2019-12-16T22:57:37.835892Z",</span><br><span class="line">    "build_snapshot" : false,</span><br><span class="line">    "lucene_version" : "8.3.0",</span><br><span class="line">    "minimum_wire_compatibility_version" : "6.8.0",</span><br><span class="line">    "minimum_index_compatibility_version" : "6.0.0-beta1"</span><br><span class="line">  &#125;,</span><br><span class="line">  "tagline" : "You Know, for Search"</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><p>ElasticSearch是一款强大的全文检索工具，他提供REST API使得使用ElasticSearch非常简单，对数据做了很强的高可用，也可根据自己的需求配置不同级别的高可用、高性能全文检索工具。</p>
-<p>本篇主要讲解对ElasticSearch的常用模块做了简单的介绍，索引的基本属性基本操作(增删改查)，动态索引模式模板，快照备份，索引生存周期；还记录了集群黄色的排查方向。以后逐步深入各个模块的配置甚至内部实现原理。</p>
 
         
     </section>

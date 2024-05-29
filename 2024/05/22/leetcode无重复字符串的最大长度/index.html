@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>Leetcode之无重复字符串的最长子串 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="题目1给定一个字符串 s ，请你找出其中不含有重复字符的 最长 子串 的长度。示例12345678910111213141516示例 1:输入: s = &amp;quot;abcabcbb&amp;quot;输出: 3 解释: 因为无重复字符的最长子串是 &amp;quot;abc&amp;quot;，所以其长度为 3。示例 2:输入: s = &amp;quot;bbbbb&amp;quot;输出: 1解释: 因为无重复字符的最长子串是 &amp;quot;b&amp;quot;，所以其长度为 1。示例 3:输入: s = &amp;quot;pwwk...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#题目"><span class="toc-number">1.</span> <span class="toc-text">题目</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#示例"><span class="toc-number">1.1.</span> <span class="toc-text">示例</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#暴力解法"><span class="toc-number">1.2.</span> <span class="toc-text">暴力解法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#回溯的位置待查找"><span class="toc-number">1.3.</span> <span class="toc-text">回溯的位置待查找</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            Leetcode之无重复字符串的最长子串
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2024/05/22/leetcode无重复字符串的最大长度/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2024-05-22T13:35:20.000Z" itemprop="datePublished">2024-05-22</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">给定一个字符串 s ，请你找出其中不含有重复字符的 最长 子串 的长度。</span><br></pre></td></tr></table></figure>
+
+<h4 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">示例 1:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;abcabcbb&quot;</span><br><span class="line">输出: 3 </span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;abc&quot;，所以其长度为 3。</span><br><span class="line">示例 2:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;bbbbb&quot;</span><br><span class="line">输出: 1</span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;b&quot;，所以其长度为 1。</span><br><span class="line">示例 3:</span><br><span class="line"></span><br><span class="line">输入: s = &quot;pwwkew&quot;</span><br><span class="line">输出: 3</span><br><span class="line">解释: 因为无重复字符的最长子串是 &quot;wke&quot;，所以其长度为 3。</span><br><span class="line">     请注意，你的答案必须是 子串 的长度，&quot;pwke&quot; 是一个子序列，不是子串。</span><br></pre></td></tr></table></figure>
+
+<h4 id="暴力解法"><a href="#暴力解法" class="headerlink" title="暴力解法"></a>暴力解法</h4><p>这个题最容易想到的还是暴力解法，既然要找最大的子串， 我就从头开始一个一个找。</p>
+<p>固定子串的左边界，右边界往右移动，逐个往子串中添加字符，直到子串中已经存在字符，这时找到一个最大子串不重复的子串 记录长度；左边界右移一个字符，继续操作，不断替换最大值。</p>
+<p>这里的时间复杂度是 O(n2)</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstr 无重复子串的最大长度 1. 暴力之美</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstr</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxStr := <span class="string">""</span></span><br><span class="line">	cur := <span class="number">0</span></span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> strings.Index(maxStr, <span class="keyword">string</span>(str[index])) != <span class="number">-1</span> &#123; <span class="comment">// 找到了， 回退并且置空</span></span><br><span class="line">			maxStr = <span class="string">""</span></span><br><span class="line">			index = cur     <span class="comment">// 继续查找下一个位置开始的子串</span></span><br><span class="line">			cur = index + <span class="number">1</span> <span class="comment">// 记录当前子串的起始位置</span></span><br><span class="line">		&#125; <span class="keyword">else</span> &#123; <span class="comment">// 无重复 直接增加</span></span><br><span class="line">			maxStr += <span class="keyword">string</span>(str[index])</span><br><span class="line">			<span class="keyword">if</span> maxLen &lt; <span class="built_in">len</span>(maxStr) &#123;</span><br><span class="line">				maxLen = <span class="built_in">len</span>(maxStr)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>#### </p>
+<h4 id="回溯的位置待查找"><a href="#回溯的位置待查找" class="headerlink" title="回溯的位置待查找"></a>回溯的位置待查找</h4><p>暴力解法在于，每次都重新开始匹配下一个位置，没有利用上次匹配到的位置，假如abcac 匹配到第二个a的时候，要重新从b开始匹配。</p>
+<p>实际并不需要，abc是无重复的，后面的a已经重复了，我们只需要在abc中找到 a 重复的位置，把他之前的子串去掉，继续往后匹配.</p>
+<p>比如abc 匹配到 a的时候 重复了，bca不重复继续往后匹配。时间复杂度 O(N)</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstrV1 无重复子串的最大长度 利用已经比较的最大子串</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstrV1</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxStr := <span class="string">""</span></span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> strings.Index(maxStr, <span class="keyword">string</span>(str[index])) != <span class="number">-1</span> &#123; <span class="comment">// 找到了，去掉最左边的字符，继续查找</span></span><br><span class="line">			<span class="comment">// i..j 如果是最大不重复的，那么i+1...j 不可能是最大的</span></span><br><span class="line">			<span class="comment">// 直接将左边的去掉 看j+1是否在子串 逐个去掉左边的字符</span></span><br><span class="line">			maxStr = maxStr[<span class="number">1</span>:] <span class="comment">// 去掉最左边的字符</span></span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">    <span class="comment">// 以上for循环可等价于</span></span><br><span class="line">    <span class="comment">// pos := strings.Index(maxStr, string(str[index]))</span></span><br><span class="line">		<span class="comment">// if pos != -1 &#123;</span></span><br><span class="line">		<span class="comment">// 	maxStr = maxStr[pos+1:]</span></span><br><span class="line">		<span class="comment">// &#125;</span></span><br><span class="line">    </span><br><span class="line">		<span class="comment">// j+1不在子串了</span></span><br><span class="line">		maxStr += <span class="keyword">string</span>(str[index])</span><br><span class="line">		<span class="keyword">if</span> maxLen &lt; <span class="built_in">len</span>(maxStr) &#123;</span><br><span class="line">			maxLen = <span class="built_in">len</span>(maxStr)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个在匹配的时候 还是会遍历查找maxStr 中是否包含字符，这里做个改进</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LenOfNonRepeatedSubstrV2 无重复子串的最大长度 利用已经比较的最大子串</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LenOfNonRepeatedSubstrV2</span><span class="params">(str <span class="keyword">string</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">	maxLen := <span class="number">0</span></span><br><span class="line">	strMap := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">byte</span>]<span class="keyword">struct</span>&#123;&#125;)</span><br><span class="line">	rk := <span class="number">-1</span> <span class="comment">// 初始化 rk 为左边的</span></span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">0</span>; index &lt; <span class="built_in">len</span>(str); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> index != <span class="number">0</span> &#123;</span><br><span class="line">			<span class="built_in">delete</span>(strMap, str[index<span class="number">-1</span>]) <span class="comment">// 存在重复的 就去掉左边</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> rk+<span class="number">1</span> &lt; <span class="built_in">len</span>(str) &#123;</span><br><span class="line">			<span class="keyword">if</span> _, ok := strMap[str[rk+<span class="number">1</span>]]; !ok &#123; <span class="comment">// 不重复就放入 并且指针后移</span></span><br><span class="line">				strMap[str[rk+<span class="number">1</span>]] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">				rk += <span class="number">1</span></span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		maxLen = max(maxLen, rk-index+<span class="number">1</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> maxLen</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里只是把字符串换成了 map，查找的时候不用遍历.</p>
+<p>后来看别人总结，才发现 这个方法叫做 滑动窗口，维护一个窗口，上面的代码实现 就是 maxStr 或者strMap 窗口中出现过的字符，就逐步缩小左边窗口，之后继续扩大右边窗口。</p>
+<p>不管叫什么字符串匹配 优化方法 都是从已经匹配的子串中，继续往后操作，就是利用前面的匹配，不能每次都重新开始。</p>
+<p>一晚上一个算法， 真是衰🐶。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>
