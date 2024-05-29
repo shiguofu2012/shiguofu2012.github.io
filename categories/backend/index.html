@@ -171,6 +171,100 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2023/05/22/数据库与缓存一致性/">数据库与缓存如何保持一致性</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/categories/backend/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2023-05-22T13:35:20.000Z" itemprop="datePublished">2023-05-22</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/redis/">redis</a>, <a class="article-tag-link" href="/tags/service/">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="数据库与缓存如何保持一致"><a href="#数据库与缓存如何保持一致" class="headerlink" title="数据库与缓存如何保持一致"></a>数据库与缓存如何保持一致</h4><p>  缓存是常用的优化数据查询慢的一种方法，数据库出现瓶颈的时候，我们会给服务加上一层缓存，如Redis，命中缓存就不用查询数据库了。减轻数据库压力，提高服务器性能。</p>
+<h5 id="数据一致性"><a href="#数据一致性" class="headerlink" title="数据一致性"></a>数据一致性</h5><p>引入缓存后，数据出现两份，在数据变更的时候，就需要考虑缓存与数据库的一致性。</p>
+<p>由于更新数据库与更新缓存操作 是两个步骤，在高并发的场景下，会出现什么问题呢？ 我们来分析一下。</p>
+<ul>
+<li>先更新数据库</li>
+</ul>
+<p>如下图所示，高并发场景下存在数据不一致。</p>
+<p><img src="/2023/05/22/数据库与缓存一致性/cache.drawio.png" alt="img"></p>
+<ul>
+<li>先更新缓存</li>
+</ul>
+<p>同样也是会出现不一致的场景，如下图所示</p>
+<p><img src="/2023/05/22/数据库与缓存一致性/cache1.drawio.png" alt="img"></p>
+<p>所以，无论是先更新数据库还是更新redis，都会存在数据不一致的场景，由于单个操作不是原子操作(并发导致执行数据未知)，也没有事物的支持(一个成功一个失败 导致数据不一致)，高并发就会存在不可预知的顺序，导致结果与预期不一致。</p>
+<p>既然更新有问题，那缓存直接删除缓存呢？在更新的时候直接删除缓存，查询的时候 如果没有缓存就查库，并设置缓存.</p>
+<p>如下图所示</p>
+<p><img src="/2023/05/22/数据库与缓存一致性/cache2.drawio.png" alt="img"></p>
+<p>读策略步骤</p>
+<ol>
+<li>读取缓存，命中直接返回</li>
+<li>未命中，读取数据库，并设置缓存</li>
+</ol>
+<p>写策略步骤</p>
+<ol>
+<li>删除缓存</li>
+<li>更新数据库</li>
+</ol>
+<p>读取的逻辑比较简单，先读缓存， 再读数据库，但写策略 删除缓存与更新数据库 这两个执行顺序 看似无关紧要，谁先谁后都不影响。我们具体分析一下。</p>
+<ul>
+<li>先删除缓存</li>
+</ul>
+<p>如下图所示，读请求来先查询数据，没查到，这个时候有个更新请求，先删除缓存，之后读请求开始读取数据(数据未更新 旧数据) 并将旧数据写入缓存。更新请求更新数据库为新的数据，这时候数据不一致。</p>
+<p><img src="/2023/05/22/数据库与缓存一致性/cache3.drawio.png" alt="img"></p>
+<ul>
+<li>先更新数据库</li>
+</ul>
+<p>先删除缓存有可能出现不一致的场景，那先更新数据库呢？来跟着我的思路看一下。</p>
+<p><img src="/2023/05/22/数据库与缓存一致性/cache4.drawio.png" alt="img"></p>
+<p>同样，一个读请求与一个更新请求，读请求先检查缓存，没数据就从数据库读取数据(这时候还是旧的数据)， 在写缓存之前， 更新请求更新了数据，并执行了清理缓存的操作，这个时候，读请求的设置缓存操作执行， 就出现了不一致。</p>
+<p>问题的关键还是 非原子操作，无事务支持，导致并发出现未知的执行顺序。</p>
+<ul>
+<li>分布式锁</li>
+</ul>
+<p>对于比较严格的场景，可以加分布式锁，将更新与删除缓存两步合为一步。也就是，数据更新可以加锁，等更新完成及缓存删除后释放锁，读请求也是加锁，发现有写锁 就等待，读锁就继续读。分布式读写锁可以解决并发导致的不一致问题。</p>
+<ul>
+<li>延迟双删</li>
+</ul>
+<p>针对「先删除缓存，再更新数据库」可以用延迟双删的操作。更新请求在删除缓存后，等待一段时间，再进行一次缓存删除操作，就可以避免缓存中缓存旧数据。</p>
+<h5 id="常见问题"><a href="#常见问题" class="headerlink" title="常见问题"></a>常见问题</h5><p>在面试的过程中，经常会假想，在操作缓存的时候，网络抖动导致缓存操作失败，这个时候很明显数据也是不一致的。</p>
+<p>就比如，更新完数据库，删除缓存的时候失败了，怎么保证一致？</p>
+<ul>
+<li>重试</li>
+</ul>
+<p>要保证强一致，只能多次删除，异步执行删除，失败后重试几次，一直失败可以增加告警机制配合。</p>
+<p>也可以记录失败的key，下次读取的时候避开，总之 要保证强一致，大家应该有不少好的方法。</p>
+<ul>
+<li>MySQL binlog订阅</li>
+</ul>
+<p>比较高级的一种方案，或者说比较复杂，binlog推送数据变更记录，直接删除缓存。</p>
+<p>不过，引入一种机制，就会导致系统越来越复杂，这个就看系统的取舍了。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2021/09/20/Nginx内置变量/">Nginx 负载均衡算法</a>
         </h1>
         
@@ -1046,120 +1140,6 @@
 <p>Golang 的实现是把 Metadata 塞在了 context 里面，只需要使用 <code>metadata.FromOutgoingContext(ctx)</code> 和 <code>metadata.FromIncomingContext(ctx)</code> 就能够访问本次请求的 Metadata。概念清楚之后代码应该非常好写了：</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> requestIdKey = <span class="string">"requestId"</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// client 请求RPC增加MetaData拦截器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDClientInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryClientInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		method <span class="keyword">string</span>, req, resp <span class="keyword">interface</span>&#123;&#125;,</span></span></span><br><span class="line"><span class="function"><span class="params">		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求的MetaData</span></span><br><span class="line">		md, ok := metadata.FromOutgoingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">      <span class="comment">// 未添加则创建</span></span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		value := ctx.Value(requestIdKey)</span><br><span class="line">		<span class="keyword">if</span> requestID, ok := value.(<span class="keyword">string</span>); ok &amp;&amp; requestID != <span class="string">""</span> &#123;</span><br><span class="line">      <span class="comment">// md 不区分大小写，内部会转换为小写</span></span><br><span class="line">      md.Set(requestIdKey, requestID)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> invoker(metadata.NewOutgoingContext(ctx, md), method, req, resp, cc, opts...)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// server端获取MetaData数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">RequestIDServerInterceptor</span><span class="params">()</span> <span class="title">grpc</span>.<span class="title">UnaryServerInterceptor</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">func</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		ctx context.Context,</span></span></span><br><span class="line"><span class="function"><span class="params">		req <span class="keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span> <span class="params">(resp <span class="keyword">interface</span>&#123;&#125;, err error)</span></span> &#123;</span><br><span class="line">    <span class="comment">// 获取请求过来的MetaData</span></span><br><span class="line">		md, ok := metadata.FromIncomingContext(ctx)</span><br><span class="line">		<span class="keyword">if</span> !ok &#123;</span><br><span class="line">			md = metadata.Pairs()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 后去请求的requstId，并设置到当前context中</span></span><br><span class="line">		requestIDs := md[requestIdKey]</span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(requestIDs) &gt;= <span class="number">1</span> &#123;</span><br><span class="line">			ctx = context.WithValue(ctx, requestIdKey, requestIDs[<span class="number">0</span>])</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> handler(ctx, req)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2021/01/04/logrotate-config/">日志切割工具 logrotate 配置</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/categories/backend/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2021-01-04T13:30:00.000Z" itemprop="datePublished">2021-01-04</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/service/">service</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h3 id="1-安装"><a href="#1-安装" class="headerlink" title="1. 安装"></a>1. 安装</h3><p>Linux一般是默认自带logrotate的，如果没有可以使用yum/apt安装</p>
-<h4 id="apt-yum-安装"><a href="#apt-yum-安装" class="headerlink" title="apt/yum 安装"></a>apt/yum 安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# yum install logrotate</span><br><span class="line">Loaded plugins: fastestmirror</span><br><span class="line">Loading mirror speeds from cached hostfile</span><br><span class="line">Package logrotate-3.8.6-14.tl2.x86_64 already installed and latest version</span><br><span class="line">Nothing to do</span><br><span class="line">[root@VM-145-82-centos ~]#</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">root@VM-0-15-ubuntu:[10:59:47]:~# apt-get install logrotate</span><br><span class="line">Reading package lists... Done</span><br><span class="line">Building dependency tree</span><br><span class="line">Reading state information... Done</span><br><span class="line">logrotate is already the newest version (3.8.7-2ubuntu2.16.04.2).</span><br><span class="line">0 upgraded, 0 newly installed, 0 to remove and 385 not upgraded.</span><br></pre></td></tr></table></figure>
-
-<h4 id="源码安装"><a href="#源码安装" class="headerlink" title="源码安装"></a>源码安装</h4><p>github地址: <a href="https://github.com/logrotate/logrotate" target="_blank" rel="noopener">https://github.com/logrotate/logrotate</a> </p>
-<p>按照github安装</p>
-<h3 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h3><p>logrotate是利用系统crontab定时执行的，在目录/etc/cron.daily中有个logrotate的脚本。如果需要，可以在cron.hourly，也可以在/etc/crontab中增加自己的配置。</p>
-<p>这些配置都是独立的，结合自己的配置以及服务的日志量来自定义达到最优配置。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/sh</span><br><span class="line"></span><br><span class="line">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf</span><br><span class="line">EXITVALUE=$?</span><br><span class="line">if [ $EXITVALUE != 0 ]; then</span><br><span class="line">    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"</span><br><span class="line">fi</span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
-
-<p>配置文件主要存放在目录</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos ~]# ls /etc/logrotate.d/</span><br><span class="line">conman  cron.30m  iptraf-ng  mgetty  mongodb  mysql  psacct  syslog  yum</span><br></pre></td></tr></table></figure>
-
-<p>一般安装会添加常用组件的配置，在生产环境中，我们会自定义一些配置。</p>
-<p>如下是本人常用的配置：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/data/log/*.log</span><br><span class="line">&#123;</span><br><span class="line">    daily</span><br><span class="line">    notifempty    </span><br><span class="line">    copytruncate</span><br><span class="line">    compress</span><br><span class="line">    rotate 60</span><br><span class="line">    missingok</span><br><span class="line">    dateext</span><br><span class="line">    dateformat -%s</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<table>
-<thead>
-<tr>
-<th><strong>配置参数</strong></th>
-<th><strong>说明</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>monthly</strong></td>
-<td>日志文件将按月轮循。其它可用值为’daily’，’weekly’或者’yearly’。</td>
-</tr>
-<tr>
-<td><strong>rotate 5</strong></td>
-<td>一次将存储5个归档日志。对于第六个归档，时间最久的归档将被删除。</td>
-</tr>
-<tr>
-<td><strong>compress</strong></td>
-<td>在轮循任务完成后，已轮循的归档将使用gzip进行压缩。</td>
-</tr>
-<tr>
-<td><strong>delaycompress</strong></td>
-<td>总是与compress选项一起用，delaycompress选项指示logrotate不要将最近的归档压缩，压缩将在下一次轮循周期进行。这在你或任何软件仍然需要读取最新归档时很有用。</td>
-</tr>
-<tr>
-<td><strong>missingok</strong></td>
-<td>在日志轮循期间，任何错误将被忽略，例如“文件无法找到”之类的错误。</td>
-</tr>
-<tr>
-<td><strong>notifempty</strong></td>
-<td>如果日志文件为空，轮循不会进行。</td>
-</tr>
-<tr>
-<td><strong>create 644 root root</strong></td>
-<td>以指定的权限创建全新的日志文件，同时logrotate也会重命名原始日志文件。</td>
-</tr>
-<tr>
-<td><strong>size</strong></td>
-<td>日志文件大小的配置，如果没达到这个大小，将不会压缩</td>
-</tr>
-<tr>
-<td><strong>dateext</strong></td>
-<td>压缩文件带上日期，默认会使用编号(log.log.1.gz)，该选项会是每次压缩都带上日期，如 log.log-2020</td>
-</tr>
-<tr>
-<td><strong>dateformat</strong></td>
-<td>日期格式  支持 %Y%m%d(年月日) %s(时间戳)</td>
-</tr>
-<tr>
-<td><strong>postrotate/endscript</strong></td>
-<td>在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行。在这种情况下，rsyslogd 进程将立即再次读取其配置并继续运行。</td>
-</tr>
-</tbody></table>
-<h3 id="3-执行频度定制"><a href="#3-执行频度定制" class="headerlink" title="3. 执行频度定制"></a>3. 执行频度定制</h3><p>logrotate是在cron中执行的，因此要自定义执行频度，可以增加crontab配置</p>
-<p>比如，我们的服务需要每半小时压缩一次 hourly是不满足我们的需求，就需要在crontab中增加一条记录</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# crontab -e</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> rotate nginx log every 30min</span><br><span class="line">*/30 * * * * /usr/sbin/logrotate  /etc/logrotate.d/cron.30m/*  -f</span><br></pre></td></tr></table></figure>
-
-<p>可以将30min执行的所有配置文件放到一个目录，执行30min命令。</p>
-<h4 id="4-手动执行"><a href="#4-手动执行" class="headerlink" title="4. 手动执行"></a>4. 手动执行</h4><p>配置文件是否配置成功，执行后是什么效果。logrotate提供测试的功能。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@VM-145-82-centos /etc/logrotate.d/cron.30m]# logrotate -d /etc/logrotate.d/cron.30m/*</span><br><span class="line">reading config file /etc/logrotate.d/cron.30m/nginx</span><br><span class="line">Allocating hash table for state file, size 15360 B</span><br><span class="line"></span><br><span class="line">Handling 1 logs</span><br><span class="line"></span><br><span class="line">rotating pattern: /var/log/nginx/*log  after 1 days (10 rotations)</span><br><span class="line">empty log files are not rotated, old logs are removed</span><br><span class="line">considering log /var/log/nginx/access.log</span><br><span class="line">  log does not need rotating (log is empty)considering log /var/log/nginx/error.log</span><br><span class="line">  log does not need rotating (log is empty)not running postrotate script, since no logs were rotated</span><br></pre></td></tr></table></figure>
-
-<p>执行后，会输出文件怎么变更，压缩重命名等。比如上面会提示 “old logs are removed” “10 rotate” 等记录。</p>
-<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>logrotate工具对于防止因庞大的日志文件而耗尽存储空间是十分有用的。配置完毕后，进程是全自动的，可以长时间在不需要人为干预下运行。可以根据需求及日志量定制自己的日志切割规则。</p>
 
         
     </section>
