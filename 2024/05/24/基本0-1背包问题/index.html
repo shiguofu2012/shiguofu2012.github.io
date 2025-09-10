@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.9.0">
+    <meta charset="UTF-8">
+
+    
+
+    
+
+    <title>一些shell脚本 | 点滴诗词</title>
+    <meta name="author" content="shiguofu">
+    <meta name="version" content="1.0.0">
+    <meta name="keywords" content>
+    <meta name="description" content="背景01背包是背包问题的基础数学模型，属于典型的动态规划问题。该问题描述为在容量为V的背包中装入n件物品（每件仅有体积和价值属性），每个物品只能选择放入或不放入，目标为获得最大总价值且总体积不超过背包容量。学习基本01背包问题对我们了解动态规划有很大的帮助，话不多说，直接上代码.01背包代码1234567891011121314151617181920212223242526272829303132// Bag// 动态规划： 主要推出状态转移方程// 01背包容量固定， 物品有容量+价...">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#背景"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#01背包代码"><span class="toc-number">2.</span> <span class="toc-text">01背包代码</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#转移方程"><span class="toc-number">3.</span> <span class="toc-text">转移方程</span></a></li></ol><li class="toc-item toc-level-2"><a class="toc-link" href="#01背包的状态转换方程"><span class="toc-number"></span> <span class="toc-text">01背包的状态转换方程 </span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#f-i-j-Max-f-i-1-j-Wi-Pi-j-gt-Wi-f-i-1-j"><span class="toc-number"></span> <span class="toc-text">f[i,j] = Max{ f[i-1,j-Wi]+Pi( j &gt;= Wi ),  f[i-1,j] }</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#结语"><span class="toc-number">1.</span> <span class="toc-text">结语</span></a></li></ol>
+        
+    </li></div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            一些shell脚本
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2024/05/24/基本0-1背包问题/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2024-05-24T14:20:17.000Z" itemprop="datePublished">2024-05-24</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h4><p>01背包是背包问题的基础数学模型，属于典型的动态规划问题。该问题描述为在容量为V的背包中装入n件物品（每件仅有体积和价值属性），<br>每个物品只能选择放入或不放入，目标为获得最大总价值且总体积不超过背包容量。<br>学习基本01背包问题对我们了解动态规划有很大的帮助，话不多说，直接上代码.</p>
+<h4 id="01背包代码"><a href="#01背包代码" class="headerlink" title="01背包代码"></a>01背包代码</h4><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Bag</span></span><br><span class="line"><span class="comment">// 动态规划： 主要推出状态转移方程</span></span><br><span class="line"><span class="comment">// 01背包容量固定， 物品有容量+价值</span></span><br><span class="line"><span class="comment">// 状态转移数组dp[i][j] 表示前i个物品放入重量为j的背包能装的最大价值</span></span><br><span class="line"><span class="comment">// 物品重量： 2 3 4 5； 价值：3 4 5 8</span></span><br><span class="line"><span class="comment">// dp[i][j] 1. 不放入i物品(放不下)， dp[i-1][j]; 2. 放入i物品， dp[i-1][j-w[i]]</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Bag</span><span class="params">(weight []<span class="keyword">int</span>, values []<span class="keyword">int</span>, <span class="built_in">cap</span> <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="comment">// 初始化数组</span></span><br><span class="line">	dp := <span class="built_in">make</span>([][]<span class="keyword">int</span>, <span class="built_in">len</span>(values)+<span class="number">1</span>)</span><br><span class="line">	<span class="keyword">for</span> index := <span class="keyword">range</span> dp &#123;</span><br><span class="line">		dp[index] = <span class="built_in">make</span>([]<span class="keyword">int</span>, <span class="built_in">cap</span>+<span class="number">1</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> index := <span class="number">1</span>; index &lt;= <span class="built_in">len</span>(values); index += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> j := <span class="number">1</span>; j &lt;= <span class="built_in">cap</span>; j += <span class="number">1</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> weight[index<span class="number">-1</span>] &gt; j &#123; <span class="comment">// 放不下</span></span><br><span class="line">				dp[index][j] = dp[index<span class="number">-1</span>][j] <span class="comment">// 不放入index个物品</span></span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				noPut := dp[index<span class="number">-1</span>][j] <span class="comment">// 不放入的价值</span></span><br><span class="line">				<span class="comment">// dp[index-1][j-weight[index-1]] 要找到 没放当前商品的时候的最大值</span></span><br><span class="line">				<span class="comment">// index-1表示上一个商品; j-weight[index-1] 表示没有放入当前商品时候的最大价值</span></span><br><span class="line">				put := dp[index<span class="number">-1</span>][j-weight[index<span class="number">-1</span>]] + values[index<span class="number">-1</span>] <span class="comment">// 放入的价值</span></span><br><span class="line">				dp[index][j] = max(noPut, put)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt;= <span class="built_in">len</span>(values); i += <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> j := <span class="number">0</span>; j &lt;= <span class="built_in">cap</span>; j += <span class="number">1</span> &#123;</span><br><span class="line">			fmt.Printf(<span class="string">"%d "</span>, dp[i][j])</span><br><span class="line">		&#125;</span><br><span class="line">		fmt.Println()</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="转移方程"><a href="#转移方程" class="headerlink" title="转移方程"></a>转移方程</h4><h2 id="01背包的状态转换方程"><a href="#01背包的状态转换方程" class="headerlink" title="01背包的状态转换方程 "></a>01背包的状态转换方程 </h2><h2 id="f-i-j-Max-f-i-1-j-Wi-Pi-j-gt-Wi-f-i-1-j"><a href="#f-i-j-Max-f-i-1-j-Wi-Pi-j-gt-Wi-f-i-1-j" class="headerlink" title="f[i,j] = Max{ f[i-1,j-Wi]+Pi( j &gt;= Wi ),  f[i-1,j] }"></a>f[i,j] = Max{ f[i-1,j-Wi]+Pi( j &gt;= Wi ),  f[i-1,j] }</h2><p>大家都知道01背包的转移方程其实不难，但怎么理解呢？</p>
+<p>动态规划算法解决此问题的核心思想是：背包容量为1时所能获得的最大收益是很容易计算的，在此基础上，可以推算出背包容量为2、3、4…所能获得的<br>最大收益。建立如下这张表格，依次将各个商品装入不同承重的背包中，计算出它们所能获得的最大收益。</p>
+<table>
+<thead>
+<tr>
+<th>商品种类</th>
+<th>背包容量</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+<th>–</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>商品种类</td>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+<td>5</td>
+<td>6</td>
+<td>7</td>
+<td>8</td>
+<td>9</td>
+</tr>
+<tr>
+<td>不装任何商品</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>商品一（容量2，权重/价值3）</td>
+<td>0(装不下)</td>
+<td>0(装不下)</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>商品二（容量3，权重/价值4）</td>
+<td>0(装不下)</td>
+<td>0(装不下)</td>
+<td>3(只能装第一个)</td>
+<td>4 + 0(放入该商品) 或者 3(不放入)</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+</tr>
+<tr>
+<td>商品三（容量4，权重/价值5）</td>
+<td>0(装不下)</td>
+<td>0(装不下)</td>
+<td>3</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+</tr>
+<tr>
+<td>商品四（容量5，权重/价值8）</td>
+<td>0(装不下)</td>
+<td>0(装不下)</td>
+<td>3</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+<td>—-</td>
+</tr>
+</tbody></table>
+<p>状态转移是按照背包容量/商品种类一点一点增大来比较的;</p>
+<p>首先要清楚f[i, j]代表什么？</p>
+<p>f[i, j] 代表容量为j的背包，有i个商品的情况下，所能获取的最大价值，如上表所示：</p>
+<p>f[0, j] 没有任何商品 就都是0</p>
+<p>f[1, j] 只有一件商品，只要装的下 最大价值就是商品一的价值</p>
+<p>f[2, j] 两件商品,依次判断容量</p>
+<p>随着商品的增多 总结出规律 即状态转移方程;</p>
+<p>第一行只有一个商品的时候，装不下就是0，装的下就是第一个商品的价值，如上表是3；</p>
+<p>第二行 有两个商品，容量一点一点增大，装不下商品二的时候，最大价值就是只有商品一的最大价值；注意临界点，当可以放入第二个商品的时候，<br>需要计算两种：</p>
+<p>一种是不放入第二个商品，因为第一个商品可能价值 比第二种高；</p>
+<p>另一种是放入该商品，需要计算放入该商品后剩余容量能够存放的最大价值;剩余容量的最大价值就是只有商品一<br>且容量为当前容量(商品二背包容量为3)减去商品二的容量(3)位置 即：商品一容量0的位置；<br>计算以上这两种方式 最大的价值 放入并计算总的最大价值</p>
+<h4 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h4><p>01背包问题是动态规划经典的算法，理解01背包问题，能够让我们对动态规划有更进一步的理解。<br>当然还有很多的变形，后续逐步学习。</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

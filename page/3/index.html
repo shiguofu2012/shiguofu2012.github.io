@@ -127,6 +127,56 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2020/05/18/leetcode两数之和/">Letcode 两数之和</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/3/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2020-05-18T15:55:20.000Z" itemprop="datePublished">2020-05-18</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/algorithm/">algorithm</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h3 id="Letcode-两数之和"><a href="#Letcode-两数之和" class="headerlink" title="Letcode 两数之和"></a>Letcode 两数之和</h3><h5 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">给定一个整数数组 nums 和一个目标值 target，请你在该数组中找出和为目标值的那 两个 整数，并返回他们的数组下标。</span><br><span class="line"></span><br><span class="line">你可以假设每种输入只会对应一个答案。但是，数组中同一个元素不能使用两遍。</span><br><span class="line"></span><br><span class="line">示例:</span><br><span class="line"></span><br><span class="line">给定 nums = [2, 7, 11, 15], target = 9</span><br><span class="line"></span><br><span class="line">因为 nums[0] + nums[1] = 2 + 7 = 9</span><br><span class="line">所以返回 [0, 1]</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>最简单的暴力解法</li>
+</ol>
+<p>最容易想到的，但是内存耗时都是比较高的，这是一般人的解法</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">twoSum</span><span class="params">(self, nums, target)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type nums: List[int]</span></span><br><span class="line"><span class="string">        :type target: int</span></span><br><span class="line"><span class="string">        :rtype: List[int]</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        index = <span class="number">0</span></span><br><span class="line">        ret = []</span><br><span class="line">        ok = <span class="literal">False</span></span><br><span class="line">        <span class="keyword">for</span> index <span class="keyword">in</span> range(len(nums)):</span><br><span class="line">            other = target - nums[index]</span><br><span class="line">            start = index</span><br><span class="line">            <span class="keyword">while</span> start &lt; len(nums) - <span class="number">1</span>:</span><br><span class="line">                <span class="keyword">if</span> nums[start + <span class="number">1</span>] == other:</span><br><span class="line">                    ret.append(index)</span><br><span class="line">                    ret.append(start + <span class="number">1</span>)</span><br><span class="line">                    ok = <span class="literal">True</span></span><br><span class="line">                    <span class="keyword">break</span></span><br><span class="line">                start += <span class="number">1</span></span><br><span class="line">            <span class="keyword">if</span> ok:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">        <span class="keyword">return</span> ret</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>简便解法</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">twoSum</span><span class="params">(self, nums, target)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type nums: List[int]</span></span><br><span class="line"><span class="string">        :type target: int</span></span><br><span class="line"><span class="string">        :rtype: List[int]</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        num_map = &#123;&#125;</span><br><span class="line">        index = <span class="number">0</span></span><br><span class="line">        <span class="keyword">for</span> num <span class="keyword">in</span> nums:</span><br><span class="line">            other = target - num</span><br><span class="line">            <span class="keyword">if</span> num_map.get(other) <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:	<span class="comment"># 注意0</span></span><br><span class="line">                <span class="keyword">return</span> [num_map.get(other), index]</span><br><span class="line">            num_map[num] = index</span><br><span class="line">            index += <span class="number">1</span></span><br><span class="line">        <span class="keyword">return</span> [<span class="number">0</span>, <span class="number">0</span>]</span><br></pre></td></tr></table></figure>
+
+<p>一次循环，把遍历过的每个数的差与当前数字的索引放入字典，后面如果有数字存在在字典中，则该index与字典中保存的index为结果</p>
+<p>我真的是被自己蠢哭，花了一个小时，弄懂了两个算法；</p>
+<p>深感有心无力，年龄大了，老程序员脑子不灵光了。</p>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2020/05/03/install-centos8-docker/">体验CENTOS 8 并安装Docker</a>
         </h1>
         
@@ -1173,56 +1223,10 @@
 </article>
 
 
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/04/shell知识点/">shell知识点.md</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/3/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-04T07:25:01.000Z" itemprop="datePublished">2019-09-04</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/shell/">shell</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="1-shell函数参数传递不需要在参数列表，是通过-1-2…-这样获取，如"><a href="#1-shell函数参数传递不需要在参数列表，是通过-1-2…-这样获取，如" class="headerlink" title="1. shell函数参数传递不需要在参数列表，是通过$1, $2….这样获取，如"></a>1. shell函数参数传递不需要在参数列表，是通过$1, $2….这样获取，如</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/bash</span><br><span class="line"></span><br><span class="line">function deploy_one_host()                           # 函数定义，小括号不是必须的</span><br><span class="line">&#123;</span><br><span class="line">    cd wps_pic</span><br><span class="line">    zip_file_name=wps_pic_`date +%Y%m%d%H%M%S`.zip</span><br><span class="line">    zip "$zip_file_name" ./* -q</span><br><span class="line">    scp $zip_file_name root@$1:/tmp                  # 获取第一个参数</span><br><span class="line">    ssh root@$1 "sh exec.sh $zip_file_name;"         # ssh 在远端执行命令，多个以分号分隔</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">deploy_one_host 10.229.26.143                       # 传递一个参数，多个可在后面添加，以空格分隔</span><br></pre></td></tr></table></figure>
-
-<h4 id="2-shell-命令行参数"><a href="#2-shell-命令行参数" class="headerlink" title="2. shell 命令行参数"></a>2. shell 命令行参数</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>!/bin/bash</span><br><span class="line"></span><br><span class="line">echo $1, $2       # 获取命令行参数，第一个第二个， 如果没有就为空</span><br></pre></td></tr></table></figure>
-
-<p>执行：</p>
-<p>./exec.sh a b</p>
-<h4 id="3-if-判断"><a href="#3-if-判断" class="headerlink" title="3.  if  判断"></a>3.  if  判断</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">function check()</span><br><span class="line">&#123;</span><br><span class="line">    if [ ! -d "$release_name" ]; then</span><br><span class="line">        echo "$release_name"" not exists, check the online dir"</span><br><span class="line">        return</span><br><span class="line">    fi</span><br><span class="line">    if [ -z "$1" ]; then</span><br><span class="line">        echo "must give the dir"</span><br><span class="line">        return</span><br><span class="line">    elif [ ! -d "$1" ]; then</span><br><span class="line">        echo "$1" "not exists please give the dir will online"</span><br><span class="line">        return</span><br><span class="line">    else</span><br><span class="line">        echo "check ok"</span><br><span class="line">        do_online $1</span><br><span class="line">    fi</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>-d  判读是不是一个目录，如果是为真</p>
-<p>-f   判断是不是一个普通文件，是为真</p>
-<p>-z 判断字符的长度是不是为0，为0则为真</p>
-<p>==/!=  字符串相等/不等</p>
-
-        
-    </section>
-</article>
-
-
 
 
 <nav class="page-nav">
-    <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span>
+    <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
 </nav>
 
 
