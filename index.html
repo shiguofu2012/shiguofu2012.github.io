@@ -129,6 +129,186 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2024/06/28/MySQL%20RR%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%EF%BC%9A%E6%9F%A5%E4%B8%8D%E5%88%B0%E5%8D%B4%E8%83%BD%E6%9B%B4%E6%96%B0%E7%8E%B0%E8%B1%A1%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/">MySQL RR隔离级别：查不到却能更新现象深度解析</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2024-06-28T13:25:17.000Z" itemprop="datePublished">2024-06-28</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Mysql/" rel="tag">Mysql</a>, <a class="article-tag-link" href="/tags/%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB/" rel="tag">隔离级别</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h2 id="一、现象引入：违背直觉的读写不一致"><a href="#一、现象引入：违背直觉的读写不一致" class="headerlink" title="一、现象引入：违背直觉的读写不一致"></a>一、现象引入：违背直觉的读写不一致</h2><p>在 MySQL InnoDB <strong>默认可重复读（REPEATABLE READ, RR）</strong> 隔离级别下，存在一个非常反直觉的现象：</p>
+<p>事务 A 先开启，事务 B 插入一条记录并提交；事务 A 中<strong>普通 SELECT 查不到该记录</strong>，但执行 <strong>UPDATE &#x2F; DELETE 却能成功更新&#x2F;删除这条记录</strong>。</p>
+<h3 id="可复现场景-SQL"><a href="#可复现场景-SQL" class="headerlink" title="可复现场景 SQL"></a>可复现场景 SQL</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE TABLE</span> user_info (</span><br><span class="line">  id <span class="type">INT</span> <span class="keyword">PRIMARY KEY</span>,</span><br><span class="line">  name <span class="type">VARCHAR</span>(<span class="number">20</span>)</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="keyword">INSERT INTO</span> user_info <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;zhangsan&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>事务 A（RR）</th>
+<th>事务 B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEGIN;</td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 空</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>BEGIN;</td>
+</tr>
+<tr>
+<td></td>
+<td>INSERT INTO user_info VALUES(2, ‘lisi’);</td>
+</tr>
+<tr>
+<td></td>
+<td>COMMIT;</td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 依然空</td>
+<td></td>
+</tr>
+<tr>
+<td>UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2; → <strong>影响行数 1</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 还是空</td>
+<td></td>
+</tr>
+<tr>
+<td>COMMIT;</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="现象总结"><a href="#现象总结" class="headerlink" title="现象总结"></a>现象总结</h3><p>SELECT 看不见，UPDATE 却能更新成功，这是 RR 级别下的标准行为，并非 MySQL  Bug。</p>
+<hr>
+<h2 id="二、底层原理：快照读-vs-当前读"><a href="#二、底层原理：快照读-vs-当前读" class="headerlink" title="二、底层原理：快照读 vs 当前读"></a>二、底层原理：快照读 vs 当前读</h2><p>MySQL InnoDB 在 RR 级别下，<strong>读操作分为两种完全不同的机制</strong>，这是现象产生的根本原因。</p>
+<h3 id="1-快照读（Consistent-Read）"><a href="#1-快照读（Consistent-Read）" class="headerlink" title="1. 快照读（Consistent Read）"></a>1. 快照读（Consistent Read）</h3><h4 id="触发语句"><a href="#触发语句" class="headerlink" title="触发语句"></a>触发语句</h4><p>普通 <code>SELECT</code>（无 FOR UPDATE &#x2F; LOCK IN SHARE MODE）</p>
+<h4 id="机制"><a href="#机制" class="headerlink" title="机制"></a>机制</h4><ul>
+<li><p>基于 <strong>MVCC（多版本并发控制）</strong> 实现</p>
+</li>
+<li><p>事务启动时生成 <strong>ReadView（一致性快照）</strong></p>
+</li>
+<li><p>后续所有普通 SELECT 都基于该快照执行</p>
+</li>
+<li><p>只能看到 <strong>快照生成前已提交</strong> 的数据</p>
+</li>
+</ul>
+<h4 id="对应现象"><a href="#对应现象" class="headerlink" title="对应现象"></a>对应现象</h4><p>事务 A 的普通 SELECT 查不到事务 B 后续提交的 id&#x3D;2 记录，符合“可重复读”的定义。</p>
+<h3 id="2-当前读（Current-Read）"><a href="#2-当前读（Current-Read）" class="headerlink" title="2. 当前读（Current Read）"></a>2. 当前读（Current Read）</h3><h4 id="触发语句-1"><a href="#触发语句-1" class="headerlink" title="触发语句"></a>触发语句</h4><ul>
+<li><p>UPDATE</p>
+</li>
+<li><p>DELETE</p>
+</li>
+<li><p>SELECT … FOR UPDATE（排他锁）</p>
+</li>
+<li><p>SELECT … LOCK IN SHARE MODE（共享锁）</p>
+</li>
+</ul>
+<h4 id="机制-1"><a href="#机制-1" class="headerlink" title="机制"></a>机制</h4><ul>
+<li><p><strong>不使用事务启动时的快照</strong></p>
+</li>
+<li><p>直接读取 <strong>数据库最新已提交的数据</strong></p>
+</li>
+<li><p>读取时会对目标数据加锁（行锁&#x2F;间隙锁），保证数据一致性</p>
+</li>
+<li><p>不受事务启动时的 ReadView 限制</p>
+</li>
+</ul>
+<h4 id="对应现象-1"><a href="#对应现象-1" class="headerlink" title="对应现象"></a>对应现象</h4><p>事务 A 的 UPDATE 能直接读取到事务 B 已提交的 id&#x3D;2 记录，并成功更新，这是当前读的核心特性。</p>
+<hr>
+<h2 id="三、执行流程完整解释"><a href="#三、执行流程完整解释" class="headerlink" title="三、执行流程完整解释"></a>三、执行流程完整解释</h2><p>结合上述场景，逐步骤拆解底层执行逻辑，清晰理解“查不到却能更新”的全过程：</p>
+<ol>
+<li><p>事务 A 执行 BEGIN 开启，InnoDB 为其生成一个 ReadView（一致性快照），此时 user_info 表中无 id&#x3D;2 的记录。</p>
+</li>
+<li><p>事务 A 执行第一次 SELECT * FROM user_info WHERE id&#x3D;2 → 触发快照读，基于 ReadView 查询，返回空结果。</p>
+</li>
+<li><p>事务 B 执行 BEGIN 开启，插入 id&#x3D;2、name&#x3D;lisi 的记录，随后 COMMIT 提交 → 该记录写入磁盘，成为数据库最新已提交数据。</p>
+</li>
+<li><p>事务 A 执行第二次 SELECT * FROM user_info WHERE id&#x3D;2 → 依然触发快照读，ReadView 未更新（事务未结束，快照不变），依旧返回空结果。</p>
+</li>
+<li><p>事务 A 执行 UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2 → 触发当前读：</p>
+<ul>
+<li><p>跳过事务 A 的 ReadView，直接扫描数据库最新的数据页</p>
+</li>
+<li><p>命中 id&#x3D;2 的记录（事务 B 已提交），对该记录加排他锁</p>
+</li>
+<li><p>执行更新操作，更新成功后返回“受影响行数 1”</p>
+</li>
+</ul>
+</li>
+<li><p>事务 A 执行第三次 SELECT * FROM user_info WHERE id&#x3D;2 → 仍然触发快照读，ReadView 依旧未变，还是看不到更新后的记录。</p>
+</li>
+<li><p>事务 A 执行 COMMIT 提交 → 事务结束，ReadView 被销毁，更新后的 id&#x3D;2 记录对后续所有事务可见。</p>
+</li>
+</ol>
+<hr>
+<h2 id="四、与幻读的关系"><a href="#四、与幻读的关系" class="headerlink" title="四、与幻读的关系"></a>四、与幻读的关系</h2><h3 id="1-标准-SQL-中幻读的定义"><a href="#1-标准-SQL-中幻读的定义" class="headerlink" title="1. 标准 SQL 中幻读的定义"></a>1. 标准 SQL 中幻读的定义</h3><p>同一事务内，对相同查询条件执行多次 SELECT，结果集出现新增的行（即“幻行”），这种现象称为幻读。</p>
+<h3 id="2-MySQL-InnoDB-RR-级别对幻读的处理"><a href="#2-MySQL-InnoDB-RR-级别对幻读的处理" class="headerlink" title="2. MySQL InnoDB RR 级别对幻读的处理"></a>2. MySQL InnoDB RR 级别对幻读的处理</h3><p>InnoDB 通过 <strong>MVCC + Next-Key Lock（间隙锁）</strong> 在 RR 级别下 <strong>部分解决幻读</strong>，具体分为两种场景：</p>
+<ul>
+<li><p><strong>纯快照读场景</strong>：通过 MVCC 的 ReadView 机制，多次 SELECT 结果一致，完全避免幻读。</p>
+</li>
+<li><p><strong>当前读场景</strong>：无法避免幻读，当前读会读取所有已提交的最新数据，包括其他事务提交的“幻行”，因此会出现“查不到但能更新”的现象。</p>
+</li>
+</ul>
+<h3 id="3-结论"><a href="#3-结论" class="headerlink" title="3. 结论"></a>3. 结论</h3><p>这种“查不到却能更新”的现象，本质是 MySQL RR 级别下的 <strong>半幻读&#x2F;部分幻读</strong>，是 InnoDB 为了平衡并发性能与数据一致性设计的标准行为，并非异常。</p>
+<hr>
+<h2 id="五、核心总结"><a href="#五、核心总结" class="headerlink" title="五、核心总结"></a>五、核心总结</h2><ol>
+<li><p><strong>RR 隔离级别 ≠ 完全屏蔽外部数据变化</strong>：仅约束普通 SELECT（快照读），不约束 UPDATE&#x2F;DELETE（当前读）。</p>
+</li>
+<li><p><strong>快照读与当前读的核心区别</strong>：SELECT &#x3D; 快照读（看事务启动时的历史数据），UPDATE&#x2F;DELETE &#x3D; 当前读（看数据库最新已提交数据）。</p>
+</li>
+<li><p>同一事务内，<strong>读和写可能基于不同的数据版本</strong>：这是“查不到却能更新”的核心原因。</p>
+</li>
+<li><p>该现象是 MySQL InnoDB RR 级别的正常行为，不是 Bug，无需修复，需在开发中规避逻辑风险。</p>
+</li>
+</ol>
+<hr>
+<h2 id="六、开发实践建议"><a href="#六、开发实践建议" class="headerlink" title="六、开发实践建议"></a>六、开发实践建议</h2><p>针对该现象，结合实际开发场景，给出3条实用建议，避免业务逻辑异常：</p>
+<ol>
+<li>同一事务内需要“先查后改”时，统一使用 <code>SELECT ... FOR UPDATE</code>（当前读），确保读、写基于同一数据版本，避免“查不到却能更新”导致的逻辑错误。示例：<br>&#96;BEGIN;</li>
+</ol>
+<p>– 用当前读查询，确保读取最新数据<br>SELECT * FROM user_info WHERE id&#x3D;2 FOR UPDATE;<br>– 基于查询结果执行更新，避免逻辑异常<br>UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2;<br>COMMIT;&#96;</p>
+<ol start="2">
+<li><p>对数据一致性要求极高的场景（如金融、支付），建议使用 <code>SERIALIZABLE（串行化）</code> 隔离级别，彻底杜绝幻读和半幻读，但会降低并发性能，需权衡使用。</p>
+</li>
+<li><p>开发中需摒弃“RR 级别下完全看不到外部新数据”的错误认知，明确区分快照读与当前读的使用场景，避免依赖错误的隔离级别特性编写业务逻辑。</p>
+<blockquote>
+<p>（注：文档部分内容可能由 AI 生成）</p>
+</blockquote>
+</li>
+</ol>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2024/05/28/Spring%20AOP%20%E8%87%AA%E5%AE%9A%E4%B9%89%E6%B3%A8%E8%A7%A3%E4%B8%8D%E7%94%9F%E6%95%88%EF%BC%9F%E5%A4%9A%E6%95%B0%E6%8D%AE%E6%BA%90%E5%88%87%E6%8D%A2%E5%9C%BA%E6%99%AF%E4%B8%8B%E7%9A%84%E6%8E%92%E6%9F%A5%E4%B8%8E%E8%A7%A3%E5%86%B3%E5%85%A8%E8%A7%A3%E6%9E%90/">Spring自定义注解不生效？多数据源切换场景下的排查与解决全解析</a>
         </h1>
         
@@ -896,89 +1076,6 @@
 <h4 id="time-iso8601"><a href="#time-iso8601" class="headerlink" title="$time_iso8601"></a><strong>$time_iso8601</strong></h4><p>服务器时间的 ISO 8610 格式</p>
 <h4 id="time-local"><a href="#time-local" class="headerlink" title="$time_local"></a><strong>$time_local</strong></h4><p>服务器时间（LOG Format 格式）</p>
 <h4 id="uri"><a href="#uri" class="headerlink" title="$uri"></a><strong>$uri</strong></h4><p>请求中的当前 URI(不带请求参数，参数位于 $args)；</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2021/09/04/Nginx%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E7%AE%97%E6%B3%95/">Nginx 负载均衡算法</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2021-09-04T07:25:01.000Z" itemprop="datePublished">2021-09-04</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/Load-Balance/" rel="tag">Load Balance</a>, <a class="article-tag-link" href="/tags/Nginx/" rel="tag">Nginx</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <br/>
-
-<blockquote>
-<p>Nginx 是一个高性能的 HTTP 和反向代理服务，因它的稳定性、丰富的功能集、示例配置文件和低系统资源的消耗而闻名。</p>
-<p>其特点是占有内存少，并发能力强，事实上 nginx 的并发能力确实在同类型的网页服务器中表现较好，中国大陆使用 nginx 网站用户有：百度、京东、新浪、网易、腾讯、淘宝等。</p>
-<p>当 Nginx 作为代理服务，后端可支持的应用也是多种类型的，比如基于 python 的 uwsgi、php 的 fastcgi 以及 TCP、HTTP、UDP 等协议；</p>
-</blockquote>
-<h2 id="1-配置-NGINX-代理后端应用"><a href="#1-配置-NGINX-代理后端应用" class="headerlink" title="1 配置 NGINX 代理后端应用"></a>1 配置 NGINX 代理后端应用</h2><h3 id="1-1-代理-uwsgi"><a href="#1-1-代理-uwsgi" class="headerlink" title="1.1 代理 uwsgi"></a>1.1 代理 uwsgi</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      uwsgi_pass service;</span><br><span class="line">      include uwsgi_params;   #uwsgi参数表，在/etc/nginx/目录</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>以上配置表示，主要使用 nginx 的指令 <strong>uwsgi_pass</strong>，使用 Nginx 的 uwsgi 模块将匹配到 location 的路径转发到有 <strong>upstream</strong> 块级指令代理的 uwsgi 服务，这里默认是轮询的方式；<br> 所有的 uwsgi 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；</p>
-<h3 id="1-2-代理-HTTP"><a href="#1-2-代理-HTTP" class="headerlink" title="1.2 代理 HTTP"></a>1.2 代理 HTTP</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      proxy_pass http://service;</span><br><span class="line">      include proxy_params;      </span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>使用 Nginx 的 <strong>porxy_pass</strong> 指令，将匹配 location 的路径的请求转发到 <strong>upstream</strong> 块级指令代理的 HTTP 服务，同样采用轮询的方式；<br> 所有的 HTTP 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；<br> 不同的地方在于 proxy_pass 要加上 http，因为 upstream 并没有指定协议；</p>
-<h3 id="1-3-代理-fastcgi-协议"><a href="#1-3-代理-fastcgi-协议" class="headerlink" title="1.3 代理 fastcgi 协议"></a>1.3 代理 fastcgi 协议</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server example.shiguofu.cn:8899;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      fastcgi_pass http://service;</span><br><span class="line">      include fastcgi_params;       #fastcgi参数表，在/etc/nginx/目录</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>使用 Nginx 的 <strong>fastcgi_pass</strong> 指令，将匹配 location 的路径的请求转发到 <strong>upstream</strong> 块级指令代理的 HTTP 服务，同样采用轮询的方式；<br> 所有的 fastcgi 服务在 upstream 中由 <strong>server</strong> 指令完成，server 指令接收 UNIX 套接字、IP 地址、FQDN 名及一些可选参数，参数下文会提及；</p>
-<h3 id="1-4-代理-TCP"><a href="#1-4-代理-TCP" class="headerlink" title="1.4 代理 TCP"></a>1.4 代理 TCP</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">stream &#123;</span><br><span class="line">   upstream mysql_backend&#123;</span><br><span class="line">      server localhost:3306;</span><br><span class="line">	   server mysql.shiguofu.cn:3306;</span><br><span class="line">   &#125;</span><br><span class="line">   server&#123;</span><br><span class="line">     listen 3307;</span><br><span class="line">     proxy_pass mysql_backend;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>使用 Nginx 的 <strong>stream</strong> 块指令，它与 <strong>http</strong> 指令同一级别，写的时候要注意，在 ubuntu 系统中，http 块写在&#x2F;etc&#x2F;nginx&#x2F;nginx.conf 中；因此笔者当时在&#x2F;etc&#x2F;nginx&#x2F;nginx.conf 中添加的这段配置；</p>
-<p>访问服务器的 3307 端口，测试 OK</p>
-<blockquote>
-<p>root@VM-0-15-ubuntu:&#x2F;etc&#x2F;nginx# mysql -h 127.0.0.1 -P 3307 -uroot -p<br>Enter password:<br>Welcome to the MySQL monitor. Commands end with ; or \g.<br>Your MySQL connection id is 27868<br>Server version: 5.7.23-0ubuntu0.16.04.1-log (Ubuntu)</p>
-<p>Copyright (c) 2000, 2018, Oracle and&#x2F;or its affiliates. All rights reserved.</p>
-<p>Oracle is a registered trademark of Oracle Corporation and&#x2F;or its<br>affiliates. Other names may be trademarks of their respective<br>owners.</p>
-<p>Type ‘help;’ or ‘\h’ for help. Type ‘\c’ to clear the current input statement.</p>
-<p>mysql&gt;</p>
-</blockquote>
-<h2 id="2-Nginx-负载均衡"><a href="#2-Nginx-负载均衡" class="headerlink" title="2 Nginx 负载均衡"></a>2 Nginx 负载均衡</h2><p>Nginx 能够广泛使用，不仅是因为它可以作为代理服务，它还提供了适应于不同业务的负载均衡算法以及判断目标服务的可用性等强大的功能；</p>
-<h3 id="2-1-轮询算法"><a href="#2-1-轮询算法" class="headerlink" title="2.1 轮询算法"></a>2.1 轮询算法</h3><p>最简单的算法，也是 Nginx 默认的负载均衡算法；</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   server localhost:8888 weight=1 max_fails=3 fail_timeout=30;</span><br><span class="line">   server 192.168.0.2:8889 weight=2;</span><br><span class="line">   server tbk.shiguofu.cn:80 backup;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">   location /app/service&#123;</span><br><span class="line">      proxy_pass http://service;</span><br><span class="line">      include proxy_params;      </span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>以上配置是在轮询的基础上，增加了权重的配置，在上面示例中，Nginx 会将三个请求中的两个分发到 8889 端口对应的服务，将另一个请求分发到本地的 8888 端口的服务，并将将 tbk.shiguofu.cn 上的服务作为备用，当分发请求失败会启用备份服务；</p>
-<ol>
-<li>使用 Nginx 的指令 <strong>weight</strong> 指令为轮询的 service 配置权重；</li>
-<li>max_fails 与 fail_timtou 为服务的高可用配置；表示在 30 秒内如果有 3 个失败的请求，则认为该服务已经宕掉，在这 30 秒结束之前不会有新的请求会发送到对应的服务上；等这 30 秒结束后，Nginx 会尝试发送一个新的请求到该服务，如果还是失败，则等待 30 秒…以此循环；</li>
-</ol>
-<h3 id="2-2-最少连接数"><a href="#2-2-最少连接数" class="headerlink" title="2.2 最少连接数"></a>2.2 最少连接数</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   least_conn;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>上面的 <strong>least_conn</strong> 指令为所负载的应用服务指定采用最少连接数负载均衡；<br> 它会将访问请求分发到 upstream 所代理的服务中，当前打开连接数最少的应用服务器；它同时支持轮询中的 weight、max_fails、fail_timeout 选项，来决定给性能更好的应用服务器分配更多的访问请求；</p>
-<h3 id="2-3-最短响应时间"><a href="#2-3-最短响应时间" class="headerlink" title="2.3 最短响应时间"></a>2.3 最短响应时间</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   least_time;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>该指令 <strong>least_time</strong> 仅仅在 NGINX PLUS 版本中支持，不多说。</p>
-<h3 id="2-4-散列算法"><a href="#2-4-散列算法" class="headerlink" title="2.4 散列算法"></a>2.4 散列算法</h3><p>分为通用散列算法与 ip 散列算法；</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   hash $host;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>通过 <strong>hash</strong> 指令实现，根据请求或运行时提供的文本、变量或者其他变量的组合生成散列值；<br> 一般情况， 在需要对访问请求进行负载可控，或将访问请求负载到已经有数据缓存的应用服务的场景下，该算法会非常有用；<br> 需要注意的是，在 upstream 中有应用服务的加入或者删除时，会重新计算散列值进行分发；</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">upstream service &#123;</span><br><span class="line">   ip_hash;</span><br><span class="line">   server localhost:8888;</span><br><span class="line">   server 192.168.0.2:8889;</span><br><span class="line">   server tbk.shiguofu.cn:80;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>指令 <strong>ip_hash</strong> 实现，通过计算客服端的 ip 地址来生成散列值。</p>
 
         
     </section>

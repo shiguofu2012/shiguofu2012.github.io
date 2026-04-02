@@ -129,6 +129,78 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2020/05/19/redis-%E5%86%85%E5%AD%98%E6%B7%98%E6%B1%B0%E7%AD%96%E7%95%A5/">redis 内存淘汰策略</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/3/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2020-05-19T14:35:20.000Z" itemprop="datePublished">2020-05-19</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/redis/" rel="tag">redis</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="redis-内存淘汰策略"><a href="#redis-内存淘汰策略" class="headerlink" title="redis 内存淘汰策略"></a>redis 内存淘汰策略</h4><p>将 Redis 用作缓存时, 如果内存空间用满, 就会根据配置的最大内存策略返回错误或者自动驱逐老的数据。</p>
+<h5 id="maxmemory-配置指令"><a href="#maxmemory-配置指令" class="headerlink" title="maxmemory 配置指令"></a>maxmemory 配置指令</h5><p>maxmemory 用于指定 Redis 能使用的最大内存。既可以在 <code>redis.conf</code> 文件中设置, 也可以在运行过程中通过 CONFIG SET 命令动态修改。</p>
+<p>例如, 要设置 100MB 的内存限制, 可以在 <code>redis.conf</code> 文件中这样配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory 100mb</span><br></pre></td></tr></table></figure>
+
+<p>将 <code>maxmemory</code> 设置为 0, 则表示不进行内存限制。当然, 对32位系统来说有一个隐性的限制条件: 最多 3GB 内存.</p>
+<h5 id="内存淘汰策略-maxmemory-policy"><a href="#内存淘汰策略-maxmemory-policy" class="headerlink" title="内存淘汰策略(maxmemory-policy)"></a>内存淘汰策略(maxmemory-policy)</h5><ul>
+<li><strong>noeviction</strong></li>
+</ul>
+<p>不删除，达到最大内存，如果继续写(新增)数据，直接返回错误信息。DEL还是可以正常执行。</p>
+<ul>
+<li><strong>allkeys-lru</strong></li>
+</ul>
+<p>所有key范围，优先删除最近最少使用(LRU)</p>
+<ul>
+<li><strong>volatile-lru</strong></li>
+</ul>
+<p>只限于设置了expire的部分，优先删除最近最少使用(LRU)的key</p>
+<ul>
+<li><strong>allkeys-random</strong></li>
+</ul>
+<p>所有key范围，随机删除一部分key</p>
+<ul>
+<li><strong>volatile-random</strong></li>
+</ul>
+<p>只限于设置了expire的部分key，随机删除</p>
+<ul>
+<li><strong>volatile-ttl</strong></li>
+</ul>
+<p>只限于设置了expire的部门；优先删除剩余时间短的key</p>
+<p>如果没有设置 <strong>expire</strong> 的key, 不满足先决条件(prerequisites); 那么 <strong>volatile-lru</strong>, <strong>volatile-random</strong> 和 <strong>volatile-ttl</strong> 策略的行为, 和 <strong>noeviction(不删除)</strong> 基本上一致。</p>
+<h4 id="内存淘汰的实现"><a href="#内存淘汰的实现" class="headerlink" title="内存淘汰的实现"></a>内存淘汰的实现</h4><p>淘汰过程：</p>
+<ul>
+<li>客户端执行命令，导致redis中的数据增加，内存增加</li>
+<li>Redis检查内存使用量，超过maxmemory限制，根据策略清除key</li>
+</ul>
+<h4 id="近似LRU算法"><a href="#近似LRU算法" class="headerlink" title="近似LRU算法"></a>近似LRU算法</h4><p>为了节约内存，采用了抽取少量的key样本，然后删除其中访问时间最久的key。</p>
+<p>在 Redis 的 LRU 算法中, 可以通过设置样本(sample)的数量来调优算法精度。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">maxmemory-samples &lt;count&gt;</span><br></pre></td></tr></table></figure>
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2020/05/19/leetcode%E4%B8%A4%E6%95%B0%E7%9B%B8%E5%8A%A0/">Letcode 两数相加</a>
         </h1>
         
@@ -1124,110 +1196,6 @@
 <h5 id="重新生成html文件，看到输出"><a href="#重新生成html文件，看到输出" class="headerlink" title="重新生成html文件，看到输出"></a>重新生成html文件，看到输出</h5><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update link as:--&gt;//&lt;url&gt;/2019/09/11/xxxx/1568192562650.png</span><br></pre></td></tr></table></figure>
 
 <p>访问即可看见图片出来啦！</p>
-
-        
-    </section>
-</article>
-
-
-    <article class="article" itemscope itemprop="blogPost">
-    
-    <header class="article-header">
-        
-        <h1 itemprop="name">
-            <a href="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/">jenkins</a>
-        </h1>
-        
-        <div class="article-meta clearfix">
-            <a class="article-date" href="http://shiguofu2012.github.io/page/3/index.html">
-    
-    <i class="icon-calendar"></i>
-    
-    <time datetime="2019-09-11T08:56:18.000Z" itemprop="datePublished">2019-09-11</time>
-</a>
-
-            
-<div class="article-tag-list">
-    <i class="icon-tag"></i>
-    <a class="article-tag-link" href="/tags/service/" rel="tag">service</a>
-</div>
-
-
-        </div>
-    </header>
-    
-    <section class="article-body markdown-body">
-        
-        <h4 id="jenkins-安装"><a href="#jenkins-安装" class="headerlink" title="jenkins 安装"></a>jenkins 安装</h4><h5 id="jdk安装"><a href="#jdk安装" class="headerlink" title="jdk安装"></a>jdk安装</h5><ol>
-<li>采用java8， 到官网下载jdk</li>
-<li>解压配置， JAVA_HOME PATH，执行如下</li>
-</ol>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@wpspic5 ~]# java -version </span><br><span class="line">openjdk version &quot;1.8.0_161&quot;</span><br><span class="line">OpenJDK Runtime Environment (build 1.8.0_161-b14)</span><br><span class="line">OpenJDK 64-Bit Server VM (build 25.161-b14, mixed mode)</span><br></pre></td></tr></table></figure>
-
-<h5 id="Jenkins-安装"><a href="#Jenkins-安装" class="headerlink" title="Jenkins 安装"></a>Jenkins 安装</h5><ol>
-<li><strong>下载RPM包安装</strong></li>
-</ol>
-<p>jenkins安装也比较简单，有相应的rpm安装包</p>
-<p><a href="https://pkg.jenkins.io/redhat-stable/">官网地址</a> 选择合适的版本，下载安装</p>
-<ol start="2">
-<li><strong>yum安装</strong></li>
-</ol>
-<p>导入yum源</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo</span><br><span class="line">sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key</span><br></pre></td></tr></table></figure>
-
-<p>安装</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install jenkins</span><br></pre></td></tr></table></figure>
-
-<h4 id="jenkins-配置"><a href="#jenkins-配置" class="headerlink" title="jenkins 配置"></a>jenkins 配置</h4><p>默认端口号是8080，直接访问，会进行一些初始化，及插件的安装</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" alt="1568192488358"></p>
-<p><strong>jenkins版本： 2.176.3-1.1</strong></p>
-<ol>
-<li><h4 id="部署节点配置"><a href="#部署节点配置" class="headerlink" title="部署节点配置"></a><strong>部署节点配置</strong></h4></li>
-</ol>
-<ul>
-<li><p>进入jenkins主界面，点击左侧菜单的 “<strong>系统管理-&gt;系统设置</strong>”，拖动配置项到“Publish on ssh”</p>
-</li>
-<li><p>新增登录主机的ssh private key&#x2F; password的登录信息</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" alt="jenkins-1"></p>
-</li>
-<li><p>增加节点，包括登录主机的用户名，IP地址，工作目录等, 可以新增多个节点</p>
-<ul>
-<li>Name: 主机标识符，用于区分</li>
-<li>Hostname： 主机ip地址</li>
-<li>Username: 登录主机的用户名</li>
-<li>Remote Directory： 远端工作目录</li>
-</ul>
-</li>
-</ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" alt="jenkins-host"></p>
-<ol start="2">
-<li><h4 id="部署配置"><a href="#部署配置" class="headerlink" title="部署配置"></a><strong>部署配置</strong></h4></li>
-</ol>
-<ul>
-<li><p>新建部署项，在主页左边栏，“<strong>新建任务</strong>“，起个有意义的名称，下面选择”<strong>自由风格的软件项目</strong>“</p>
-<p>找到源码管理，配置Git 的Repo&#x2F;credit(获取代码的key),  分支；</p>
-<p>如果可以正常获取，不会出现提示</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" alt="jenkins-source"></p>
-<p>否则会出现如下提示，检查repo的配置是否写错误；检查key是不是有权限拉取代码</p>
-</li>
-</ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" alt="jenkins-source-1"></p>
-<ul>
-<li><p>找到”<strong>构建</strong>“ 选项</p>
-<ul>
-<li>加入构建的命令，即打包操作（进入到工作目录，直接打包）</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd $WORKSPACE</span><br><span class="line">TAR_NAME=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tar -cf $TAR_NAME ./</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>增加构建步骤，选择 ”send files or execute commands over SSH“, 采用ssh发送项目文件到目标机器并执行命令部署</li>
-</ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" alt="1567994464334"></p>
-<ul>
-<li>增加发送到目标机器后的操作命令，依赖于项目文件 (release&#x2F;project_init.sh)</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">file_name=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tmp_dir=/tmp/wps_eb_tmp</span><br><span class="line">log_dir=/data/log/pm2/wps_eb-admin</span><br><span class="line">echo $file_name</span><br><span class="line">sudo rm -rf  $tmp_dir</span><br><span class="line">sudo mkdir -p $tmp_dir</span><br><span class="line">sudo tar -xf /tmp/$file_name -C $tmp_dir ./release/*</span><br><span class="line">cd $tmp_dir/release</span><br><span class="line">sudo ./project_init.sh /tmp/$file_name</span><br></pre></td></tr></table></figure></li>
-</ul>
 
         
     </section>

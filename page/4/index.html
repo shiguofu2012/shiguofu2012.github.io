@@ -129,6 +129,110 @@
     <header class="article-header">
         
         <h1 itemprop="name">
+            <a href="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/">jenkins</a>
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/page/4/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2019-09-11T08:56:18.000Z" itemprop="datePublished">2019-09-11</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/service/" rel="tag">service</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h4 id="jenkins-安装"><a href="#jenkins-安装" class="headerlink" title="jenkins 安装"></a>jenkins 安装</h4><h5 id="jdk安装"><a href="#jdk安装" class="headerlink" title="jdk安装"></a>jdk安装</h5><ol>
+<li>采用java8， 到官网下载jdk</li>
+<li>解压配置， JAVA_HOME PATH，执行如下</li>
+</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@wpspic5 ~]# java -version </span><br><span class="line">openjdk version &quot;1.8.0_161&quot;</span><br><span class="line">OpenJDK Runtime Environment (build 1.8.0_161-b14)</span><br><span class="line">OpenJDK 64-Bit Server VM (build 25.161-b14, mixed mode)</span><br></pre></td></tr></table></figure>
+
+<h5 id="Jenkins-安装"><a href="#Jenkins-安装" class="headerlink" title="Jenkins 安装"></a>Jenkins 安装</h5><ol>
+<li><strong>下载RPM包安装</strong></li>
+</ol>
+<p>jenkins安装也比较简单，有相应的rpm安装包</p>
+<p><a href="https://pkg.jenkins.io/redhat-stable/">官网地址</a> 选择合适的版本，下载安装</p>
+<ol start="2">
+<li><strong>yum安装</strong></li>
+</ol>
+<p>导入yum源</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo</span><br><span class="line">sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key</span><br></pre></td></tr></table></figure>
+
+<p>安装</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install jenkins</span><br></pre></td></tr></table></figure>
+
+<h4 id="jenkins-配置"><a href="#jenkins-配置" class="headerlink" title="jenkins 配置"></a>jenkins 配置</h4><p>默认端口号是8080，直接访问，会进行一些初始化，及插件的安装</p>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" alt="1568192488358"></p>
+<p><strong>jenkins版本： 2.176.3-1.1</strong></p>
+<ol>
+<li><h4 id="部署节点配置"><a href="#部署节点配置" class="headerlink" title="部署节点配置"></a><strong>部署节点配置</strong></h4></li>
+</ol>
+<ul>
+<li><p>进入jenkins主界面，点击左侧菜单的 “<strong>系统管理-&gt;系统设置</strong>”，拖动配置项到“Publish on ssh”</p>
+</li>
+<li><p>新增登录主机的ssh private key&#x2F; password的登录信息</p>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" alt="jenkins-1"></p>
+</li>
+<li><p>增加节点，包括登录主机的用户名，IP地址，工作目录等, 可以新增多个节点</p>
+<ul>
+<li>Name: 主机标识符，用于区分</li>
+<li>Hostname： 主机ip地址</li>
+<li>Username: 登录主机的用户名</li>
+<li>Remote Directory： 远端工作目录</li>
+</ul>
+</li>
+</ul>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" alt="jenkins-host"></p>
+<ol start="2">
+<li><h4 id="部署配置"><a href="#部署配置" class="headerlink" title="部署配置"></a><strong>部署配置</strong></h4></li>
+</ol>
+<ul>
+<li><p>新建部署项，在主页左边栏，“<strong>新建任务</strong>“，起个有意义的名称，下面选择”<strong>自由风格的软件项目</strong>“</p>
+<p>找到源码管理，配置Git 的Repo&#x2F;credit(获取代码的key),  分支；</p>
+<p>如果可以正常获取，不会出现提示</p>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" alt="jenkins-source"></p>
+<p>否则会出现如下提示，检查repo的配置是否写错误；检查key是不是有权限拉取代码</p>
+</li>
+</ul>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" alt="jenkins-source-1"></p>
+<ul>
+<li><p>找到”<strong>构建</strong>“ 选项</p>
+<ul>
+<li>加入构建的命令，即打包操作（进入到工作目录，直接打包）</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cd $WORKSPACE</span><br><span class="line">TAR_NAME=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tar -cf $TAR_NAME ./</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>增加构建步骤，选择 ”send files or execute commands over SSH“, 采用ssh发送项目文件到目标机器并执行命令部署</li>
+</ul>
+<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" alt="1567994464334"></p>
+<ul>
+<li>增加发送到目标机器后的操作命令，依赖于项目文件 (release&#x2F;project_init.sh)</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">file_name=wps_eb_`date +%Y-%m-%d`.tar</span><br><span class="line">tmp_dir=/tmp/wps_eb_tmp</span><br><span class="line">log_dir=/data/log/pm2/wps_eb-admin</span><br><span class="line">echo $file_name</span><br><span class="line">sudo rm -rf  $tmp_dir</span><br><span class="line">sudo mkdir -p $tmp_dir</span><br><span class="line">sudo tar -xf /tmp/$file_name -C $tmp_dir ./release/*</span><br><span class="line">cd $tmp_dir/release</span><br><span class="line">sudo ./project_init.sh /tmp/$file_name</span><br></pre></td></tr></table></figure></li>
+</ul>
+
+        
+    </section>
+</article>
+
+
+    <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
             <a href="/2019/09/11/%E4%B8%80%E4%BA%9Bshell%E8%84%9A%E6%9C%AC/">一些shell脚本</a>
         </h1>
         
