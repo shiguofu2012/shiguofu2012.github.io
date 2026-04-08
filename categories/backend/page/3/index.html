@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
 
-    
 
+    
     
 
     <title>Category: backend | 点滴诗词</title>
@@ -441,7 +441,8 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis-server /etc/redis.conf</span><br></pre></td></tr></table></figure>
 
 <p>运行后出现下图，则运行成功：</p>
-<p><img src="/redis-install/redis-start.png" alt="redis-start"></p>
+<img src="/2019/09/17/redis-install/redis-start.png" class="" title="redis-start">
+
 <ul>
 <li>访问</li>
 </ul>
@@ -518,7 +519,8 @@
 <li>数据冗余<br>集群可增加延迟写的节点，防止误操作</li>
 <li>读写分离<br>适合读多写少的业务</li>
 </ul>
-<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><p><img src="/mongodb/mongo-replset.svg" alt="mongo结构"></p>
+<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><img src="/2019/09/16/mongodb/mongo-replset.svg" class="" title="mongo结构">
+
 <p>集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定</p>
 <blockquote>
 <p>A replica set can have up to 50 members but only 7 voting members.</p>
@@ -544,12 +546,14 @@
 <li><strong>PSS</strong></li>
 </ul>
 <p>Primary + Secondary + Secondary模式，通过Primary和Secondary搭建的Replica Set</p>
-<p><img src="/mongodb/PSS.png" alt="PSS"></p>
+<img src="/2019/09/16/mongodb/PSS.png" class="" title="PSS">
+
 <ul>
 <li><strong>PSA</strong></li>
 </ul>
 <p>Primary + Secondary + Arbiter模式，使用Arbiter搭建Replica Set</p>
-<p><img src="/mongodb/PSA.png" alt="PSA"></p>
+<img src="/2019/09/16/mongodb/PSA.png" class="" title="PSA">
+
 <p>偶数个数据节点，加一个Arbiter构成的Replica Set</p>
 <h4 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h4><p>副本集通过 replSetInitiate 命令或 rs.initiate() 命令进行初始化。</p>
 <p>初始化后各个节点开始发送心跳消息，并发起 Primary 选举操作，获得大多数成员投票支持的节点，会成为 Primary，其余节点成为 Secondary。</p>
@@ -648,7 +652,8 @@
 <li>从库不能连接到主库(默认超过10s，可通过heartbeatTimeoutSecs参数控制)，由从库发起选举</li>
 </ul>
 <p>副本集的自动failover是通过心跳检测实现的，进而实现高可用</p>
-<p><img src="/mongodb/mongo-failover.png" alt="mongo-failover"></p>
+<img src="/2019/09/16/mongodb/mongo-failover.png" class="" title="mongo-failover">
+
 <h3 id="读写配置"><a href="#读写配置" class="headerlink" title="读写配置"></a>读写配置</h3><p><strong>Read Preference</strong></p>
 <blockquote>
 <p>All read preference modes except primary may return stale data because secondaries replicate operations from the primary with some delay. Ensure that your application can tolerate stale data if you choose to use a non-primary mode.</p>
@@ -820,7 +825,8 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install jenkins</span><br></pre></td></tr></table></figure>
 
 <h4 id="jenkins-配置"><a href="#jenkins-配置" class="headerlink" title="jenkins 配置"></a>jenkins 配置</h4><p>默认端口号是8080，直接访问，会进行一些初始化，及插件的安装</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" alt="1568192488358"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" class="" width="1568192488358">
+
 <p><strong>jenkins版本： 2.176.3-1.1</strong></p>
 <ol>
 <li><h4 id="部署节点配置"><a href="#部署节点配置" class="headerlink" title="部署节点配置"></a><strong>部署节点配置</strong></h4></li>
@@ -829,7 +835,7 @@
 <li><p>进入jenkins主界面，点击左侧菜单的 “<strong>系统管理-&gt;系统设置</strong>”，拖动配置项到“Publish on ssh”</p>
 </li>
 <li><p>新增登录主机的ssh private key&#x2F; password的登录信息</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" alt="jenkins-1"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" class="" title="jenkins-1">
 </li>
 <li><p>增加节点，包括登录主机的用户名，IP地址，工作目录等, 可以新增多个节点</p>
 <ul>
@@ -840,7 +846,10 @@
 </ul>
 </li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" alt="jenkins-host"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" class="" title="jenkins-host">
+
+
+
 <ol start="2">
 <li><h4 id="部署配置"><a href="#部署配置" class="headerlink" title="部署配置"></a><strong>部署配置</strong></h4></li>
 </ol>
@@ -848,11 +857,13 @@
 <li><p>新建部署项，在主页左边栏，“<strong>新建任务</strong>“，起个有意义的名称，下面选择”<strong>自由风格的软件项目</strong>“</p>
 <p>找到源码管理，配置Git 的Repo&#x2F;credit(获取代码的key),  分支；</p>
 <p>如果可以正常获取，不会出现提示</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" alt="jenkins-source"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" class="" title="jenkins-source">
+
 <p>否则会出现如下提示，检查repo的配置是否写错误；检查key是不是有权限拉取代码</p>
 </li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" alt="jenkins-source-1"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" class="" title="jenkins-source-1">
+
 <ul>
 <li><p>找到”<strong>构建</strong>“ 选项</p>
 <ul>
@@ -863,7 +874,8 @@
 <ul>
 <li>增加构建步骤，选择 ”send files or execute commands over SSH“, 采用ssh发送项目文件到目标机器并执行命令部署</li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" alt="1567994464334"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" class="" width="1567994464334">
+
 <ul>
 <li>增加发送到目标机器后的操作命令，依赖于项目文件 (release&#x2F;project_init.sh)</li>
 </ul>

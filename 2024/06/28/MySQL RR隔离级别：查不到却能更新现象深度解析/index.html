@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+
+
+    
+    
+
+    <title>MySQL RR隔离级别：查不到却能更新现象深度解析 | 点滴诗词</title>
+    <meta name="author" content="shiguofu" />
+    <meta name="version" content="1.0.0" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="一、现象引入：违背直觉的读写不一致在 MySQL InnoDB 默认可重复读（REPEATABLE READ, RR） 隔离级别下，存在一个非常反直觉的现象：事务 A 先开启，事务 B 插入一条记录并提交；事务 A 中普通 SELECT 查不到该记录，但执行 UPDATE &amp;#x2F; DELETE 却能成功更新&amp;#x2F;删除这条记录。可复现场景 SQL123456CREATE TABLE user_info (  id INT PRIMARY KEY,  name VARCHAR(20));..." />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 8.1.1"></head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E7%8E%B0%E8%B1%A1%E5%BC%95%E5%85%A5%EF%BC%9A%E8%BF%9D%E8%83%8C%E7%9B%B4%E8%A7%89%E7%9A%84%E8%AF%BB%E5%86%99%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="toc-number">1.</span> <span class="toc-text">一、现象引入：违背直觉的读写不一致</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E5%A4%8D%E7%8E%B0%E5%9C%BA%E6%99%AF-SQL"><span class="toc-number">1.1.</span> <span class="toc-text">可复现场景 SQL</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%8E%B0%E8%B1%A1%E6%80%BB%E7%BB%93"><span class="toc-number">1.2.</span> <span class="toc-text">现象总结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86%EF%BC%9A%E5%BF%AB%E7%85%A7%E8%AF%BB-vs-%E5%BD%93%E5%89%8D%E8%AF%BB"><span class="toc-number">2.</span> <span class="toc-text">二、底层原理：快照读 vs 当前读</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%BF%AB%E7%85%A7%E8%AF%BB%EF%BC%88Consistent-Read%EF%BC%89"><span class="toc-number">2.1.</span> <span class="toc-text">1. 快照读（Consistent Read）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%A7%A6%E5%8F%91%E8%AF%AD%E5%8F%A5"><span class="toc-number">2.1.1.</span> <span class="toc-text">触发语句</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%BA%E5%88%B6"><span class="toc-number">2.1.2.</span> <span class="toc-text">机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AF%B9%E5%BA%94%E7%8E%B0%E8%B1%A1"><span class="toc-number">2.1.3.</span> <span class="toc-text">对应现象</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%BD%93%E5%89%8D%E8%AF%BB%EF%BC%88Current-Read%EF%BC%89"><span class="toc-number">2.2.</span> <span class="toc-text">2. 当前读（Current Read）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%A7%A6%E5%8F%91%E8%AF%AD%E5%8F%A5-1"><span class="toc-number">2.2.1.</span> <span class="toc-text">触发语句</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%BA%E5%88%B6-1"><span class="toc-number">2.2.2.</span> <span class="toc-text">机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AF%B9%E5%BA%94%E7%8E%B0%E8%B1%A1-1"><span class="toc-number">2.2.3.</span> <span class="toc-text">对应现象</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B%E5%AE%8C%E6%95%B4%E8%A7%A3%E9%87%8A"><span class="toc-number">3.</span> <span class="toc-text">三、执行流程完整解释</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">4.</span> <span class="toc-text">四、与幻读的关系</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%87%E5%87%86-SQL-%E4%B8%AD%E5%B9%BB%E8%AF%BB%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="toc-number">4.1.</span> <span class="toc-text">1. 标准 SQL 中幻读的定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-MySQL-InnoDB-RR-%E7%BA%A7%E5%88%AB%E5%AF%B9%E5%B9%BB%E8%AF%BB%E7%9A%84%E5%A4%84%E7%90%86"><span class="toc-number">4.2.</span> <span class="toc-text">2. MySQL InnoDB RR 级别对幻读的处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%BB%93%E8%AE%BA"><span class="toc-number">4.3.</span> <span class="toc-text">3. 结论</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%A0%B8%E5%BF%83%E6%80%BB%E7%BB%93"><span class="toc-number">5.</span> <span class="toc-text">五、核心总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%BC%80%E5%8F%91%E5%AE%9E%E8%B7%B5%E5%BB%BA%E8%AE%AE"><span class="toc-number">6.</span> <span class="toc-text">六、开发实践建议</span></a></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            MySQL RR隔离级别：查不到却能更新现象深度解析
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2024/06/28/MySQL%20RR%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%EF%BC%9A%E6%9F%A5%E4%B8%8D%E5%88%B0%E5%8D%B4%E8%83%BD%E6%9B%B4%E6%96%B0%E7%8E%B0%E8%B1%A1%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2024-06-28T13:25:17.000Z" itemprop="datePublished">2024-06-28</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/Mysql/" rel="tag">Mysql</a>, <a class="article-tag-link" href="/tags/%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB/" rel="tag">隔离级别</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <h2 id="一、现象引入：违背直觉的读写不一致"><a href="#一、现象引入：违背直觉的读写不一致" class="headerlink" title="一、现象引入：违背直觉的读写不一致"></a>一、现象引入：违背直觉的读写不一致</h2><p>在 MySQL InnoDB <strong>默认可重复读（REPEATABLE READ, RR）</strong> 隔离级别下，存在一个非常反直觉的现象：</p>
+<p>事务 A 先开启，事务 B 插入一条记录并提交；事务 A 中<strong>普通 SELECT 查不到该记录</strong>，但执行 <strong>UPDATE &#x2F; DELETE 却能成功更新&#x2F;删除这条记录</strong>。</p>
+<h3 id="可复现场景-SQL"><a href="#可复现场景-SQL" class="headerlink" title="可复现场景 SQL"></a>可复现场景 SQL</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE TABLE</span> user_info (</span><br><span class="line">  id <span class="type">INT</span> <span class="keyword">PRIMARY KEY</span>,</span><br><span class="line">  name <span class="type">VARCHAR</span>(<span class="number">20</span>)</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="keyword">INSERT INTO</span> user_info <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;zhangsan&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>事务 A（RR）</th>
+<th>事务 B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEGIN;</td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 空</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>BEGIN;</td>
+</tr>
+<tr>
+<td></td>
+<td>INSERT INTO user_info VALUES(2, ‘lisi’);</td>
+</tr>
+<tr>
+<td></td>
+<td>COMMIT;</td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 依然空</td>
+<td></td>
+</tr>
+<tr>
+<td>UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2; → <strong>影响行数 1</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM user_info WHERE id&#x3D;2; → 还是空</td>
+<td></td>
+</tr>
+<tr>
+<td>COMMIT;</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3 id="现象总结"><a href="#现象总结" class="headerlink" title="现象总结"></a>现象总结</h3><p>SELECT 看不见，UPDATE 却能更新成功，这是 RR 级别下的标准行为，并非 MySQL  Bug。</p>
+<hr>
+<h2 id="二、底层原理：快照读-vs-当前读"><a href="#二、底层原理：快照读-vs-当前读" class="headerlink" title="二、底层原理：快照读 vs 当前读"></a>二、底层原理：快照读 vs 当前读</h2><p>MySQL InnoDB 在 RR 级别下，<strong>读操作分为两种完全不同的机制</strong>，这是现象产生的根本原因。</p>
+<h3 id="1-快照读（Consistent-Read）"><a href="#1-快照读（Consistent-Read）" class="headerlink" title="1. 快照读（Consistent Read）"></a>1. 快照读（Consistent Read）</h3><h4 id="触发语句"><a href="#触发语句" class="headerlink" title="触发语句"></a>触发语句</h4><p>普通 <code>SELECT</code>（无 FOR UPDATE &#x2F; LOCK IN SHARE MODE）</p>
+<h4 id="机制"><a href="#机制" class="headerlink" title="机制"></a>机制</h4><ul>
+<li><p>基于 <strong>MVCC（多版本并发控制）</strong> 实现</p>
+</li>
+<li><p>事务启动时生成 <strong>ReadView（一致性快照）</strong></p>
+</li>
+<li><p>后续所有普通 SELECT 都基于该快照执行</p>
+</li>
+<li><p>只能看到 <strong>快照生成前已提交</strong> 的数据</p>
+</li>
+</ul>
+<h4 id="对应现象"><a href="#对应现象" class="headerlink" title="对应现象"></a>对应现象</h4><p>事务 A 的普通 SELECT 查不到事务 B 后续提交的 id&#x3D;2 记录，符合“可重复读”的定义。</p>
+<h3 id="2-当前读（Current-Read）"><a href="#2-当前读（Current-Read）" class="headerlink" title="2. 当前读（Current Read）"></a>2. 当前读（Current Read）</h3><h4 id="触发语句-1"><a href="#触发语句-1" class="headerlink" title="触发语句"></a>触发语句</h4><ul>
+<li><p>UPDATE</p>
+</li>
+<li><p>DELETE</p>
+</li>
+<li><p>SELECT … FOR UPDATE（排他锁）</p>
+</li>
+<li><p>SELECT … LOCK IN SHARE MODE（共享锁）</p>
+</li>
+</ul>
+<h4 id="机制-1"><a href="#机制-1" class="headerlink" title="机制"></a>机制</h4><ul>
+<li><p><strong>不使用事务启动时的快照</strong></p>
+</li>
+<li><p>直接读取 <strong>数据库最新已提交的数据</strong></p>
+</li>
+<li><p>读取时会对目标数据加锁（行锁&#x2F;间隙锁），保证数据一致性</p>
+</li>
+<li><p>不受事务启动时的 ReadView 限制</p>
+</li>
+</ul>
+<h4 id="对应现象-1"><a href="#对应现象-1" class="headerlink" title="对应现象"></a>对应现象</h4><p>事务 A 的 UPDATE 能直接读取到事务 B 已提交的 id&#x3D;2 记录，并成功更新，这是当前读的核心特性。</p>
+<hr>
+<h2 id="三、执行流程完整解释"><a href="#三、执行流程完整解释" class="headerlink" title="三、执行流程完整解释"></a>三、执行流程完整解释</h2><p>结合上述场景，逐步骤拆解底层执行逻辑，清晰理解“查不到却能更新”的全过程：</p>
+<ol>
+<li><p>事务 A 执行 BEGIN 开启，InnoDB 为其生成一个 ReadView（一致性快照），此时 user_info 表中无 id&#x3D;2 的记录。</p>
+</li>
+<li><p>事务 A 执行第一次 SELECT * FROM user_info WHERE id&#x3D;2 → 触发快照读，基于 ReadView 查询，返回空结果。</p>
+</li>
+<li><p>事务 B 执行 BEGIN 开启，插入 id&#x3D;2、name&#x3D;lisi 的记录，随后 COMMIT 提交 → 该记录写入磁盘，成为数据库最新已提交数据。</p>
+</li>
+<li><p>事务 A 执行第二次 SELECT * FROM user_info WHERE id&#x3D;2 → 依然触发快照读，ReadView 未更新（事务未结束，快照不变），依旧返回空结果。</p>
+</li>
+<li><p>事务 A 执行 UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2 → 触发当前读：</p>
+<ul>
+<li><p>跳过事务 A 的 ReadView，直接扫描数据库最新的数据页</p>
+</li>
+<li><p>命中 id&#x3D;2 的记录（事务 B 已提交），对该记录加排他锁</p>
+</li>
+<li><p>执行更新操作，更新成功后返回“受影响行数 1”</p>
+</li>
+</ul>
+</li>
+<li><p>事务 A 执行第三次 SELECT * FROM user_info WHERE id&#x3D;2 → 仍然触发快照读，ReadView 依旧未变，还是看不到更新后的记录。</p>
+</li>
+<li><p>事务 A 执行 COMMIT 提交 → 事务结束，ReadView 被销毁，更新后的 id&#x3D;2 记录对后续所有事务可见。</p>
+</li>
+</ol>
+<hr>
+<h2 id="四、与幻读的关系"><a href="#四、与幻读的关系" class="headerlink" title="四、与幻读的关系"></a>四、与幻读的关系</h2><h3 id="1-标准-SQL-中幻读的定义"><a href="#1-标准-SQL-中幻读的定义" class="headerlink" title="1. 标准 SQL 中幻读的定义"></a>1. 标准 SQL 中幻读的定义</h3><p>同一事务内，对相同查询条件执行多次 SELECT，结果集出现新增的行（即“幻行”），这种现象称为幻读。</p>
+<h3 id="2-MySQL-InnoDB-RR-级别对幻读的处理"><a href="#2-MySQL-InnoDB-RR-级别对幻读的处理" class="headerlink" title="2. MySQL InnoDB RR 级别对幻读的处理"></a>2. MySQL InnoDB RR 级别对幻读的处理</h3><p>InnoDB 通过 <strong>MVCC + Next-Key Lock（间隙锁）</strong> 在 RR 级别下 <strong>部分解决幻读</strong>，具体分为两种场景：</p>
+<ul>
+<li><p><strong>纯快照读场景</strong>：通过 MVCC 的 ReadView 机制，多次 SELECT 结果一致，完全避免幻读。</p>
+</li>
+<li><p><strong>当前读场景</strong>：无法避免幻读，当前读会读取所有已提交的最新数据，包括其他事务提交的“幻行”，因此会出现“查不到但能更新”的现象。</p>
+</li>
+</ul>
+<h3 id="3-结论"><a href="#3-结论" class="headerlink" title="3. 结论"></a>3. 结论</h3><p>这种“查不到却能更新”的现象，本质是 MySQL RR 级别下的 <strong>半幻读&#x2F;部分幻读</strong>，是 InnoDB 为了平衡并发性能与数据一致性设计的标准行为，并非异常。</p>
+<hr>
+<h2 id="五、核心总结"><a href="#五、核心总结" class="headerlink" title="五、核心总结"></a>五、核心总结</h2><ol>
+<li><p><strong>RR 隔离级别 ≠ 完全屏蔽外部数据变化</strong>：仅约束普通 SELECT（快照读），不约束 UPDATE&#x2F;DELETE（当前读）。</p>
+</li>
+<li><p><strong>快照读与当前读的核心区别</strong>：SELECT &#x3D; 快照读（看事务启动时的历史数据），UPDATE&#x2F;DELETE &#x3D; 当前读（看数据库最新已提交数据）。</p>
+</li>
+<li><p>同一事务内，<strong>读和写可能基于不同的数据版本</strong>：这是“查不到却能更新”的核心原因。</p>
+</li>
+<li><p>该现象是 MySQL InnoDB RR 级别的正常行为，不是 Bug，无需修复，需在开发中规避逻辑风险。</p>
+</li>
+</ol>
+<hr>
+<h2 id="六、开发实践建议"><a href="#六、开发实践建议" class="headerlink" title="六、开发实践建议"></a>六、开发实践建议</h2><p>针对该现象，结合实际开发场景，给出3条实用建议，避免业务逻辑异常：</p>
+<ol>
+<li>同一事务内需要“先查后改”时，统一使用 <code>SELECT ... FOR UPDATE</code>（当前读），确保读、写基于同一数据版本，避免“查不到却能更新”导致的逻辑错误。示例：<br>&#96;BEGIN;</li>
+</ol>
+<p>  – 用当前读查询，确保读取最新数据<br>  SELECT * FROM user_info WHERE id&#x3D;2 FOR UPDATE;<br>  – 基于查询结果执行更新，避免逻辑异常<br>  UPDATE user_info SET name&#x3D;’lisics’ WHERE id&#x3D;2;<br>  COMMIT;&#96;</p>
+<ol start="2">
+<li><p>对数据一致性要求极高的场景（如金融、支付），建议使用 <code>SERIALIZABLE（串行化）</code> 隔离级别，彻底杜绝幻读和半幻读，但会降低并发性能，需权衡使用。</p>
+</li>
+<li><p>开发中需摒弃“RR 级别下完全看不到外部新数据”的错误认知，明确区分快照读与当前读的使用场景，避免依赖错误的隔离级别特性编写业务逻辑。</p>
+</li>
+</ol>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

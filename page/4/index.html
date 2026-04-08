@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
 
-    
 
+    
     
 
     <title>点滴诗词</title>
@@ -224,7 +224,8 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install jenkins</span><br></pre></td></tr></table></figure>
 
 <h4 id="jenkins-配置"><a href="#jenkins-配置" class="headerlink" title="jenkins 配置"></a>jenkins 配置</h4><p>默认端口号是8080，直接访问，会进行一些初始化，及插件的安装</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" alt="1568192488358"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/1568192562650.png" class="" width="1568192488358">
+
 <p><strong>jenkins版本： 2.176.3-1.1</strong></p>
 <ol>
 <li><h4 id="部署节点配置"><a href="#部署节点配置" class="headerlink" title="部署节点配置"></a><strong>部署节点配置</strong></h4></li>
@@ -233,7 +234,7 @@
 <li><p>进入jenkins主界面，点击左侧菜单的 “<strong>系统管理-&gt;系统设置</strong>”，拖动配置项到“Publish on ssh”</p>
 </li>
 <li><p>新增登录主机的ssh private key&#x2F; password的登录信息</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" alt="jenkins-1"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-1.png" class="" title="jenkins-1">
 </li>
 <li><p>增加节点，包括登录主机的用户名，IP地址，工作目录等, 可以新增多个节点</p>
 <ul>
@@ -244,7 +245,10 @@
 </ul>
 </li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" alt="jenkins-host"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-host.png" class="" title="jenkins-host">
+
+
+
 <ol start="2">
 <li><h4 id="部署配置"><a href="#部署配置" class="headerlink" title="部署配置"></a><strong>部署配置</strong></h4></li>
 </ol>
@@ -252,11 +256,13 @@
 <li><p>新建部署项，在主页左边栏，“<strong>新建任务</strong>“，起个有意义的名称，下面选择”<strong>自由风格的软件项目</strong>“</p>
 <p>找到源码管理，配置Git 的Repo&#x2F;credit(获取代码的key),  分支；</p>
 <p>如果可以正常获取，不会出现提示</p>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" alt="jenkins-source"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source.png" class="" title="jenkins-source">
+
 <p>否则会出现如下提示，检查repo的配置是否写错误；检查key是不是有权限拉取代码</p>
 </li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" alt="jenkins-source-1"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-source-1.png" class="" title="jenkins-source-1">
+
 <ul>
 <li><p>找到”<strong>构建</strong>“ 选项</p>
 <ul>
@@ -267,7 +273,8 @@
 <ul>
 <li>增加构建步骤，选择 ”send files or execute commands over SSH“, 采用ssh发送项目文件到目标机器并执行命令部署</li>
 </ul>
-<p><img src="/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" alt="1567994464334"></p>
+<img src="/2019/09/11/jenkins%E9%83%A8%E7%BD%B2nodejs/jenkins-build.png" class="" width="1567994464334">
+
 <ul>
 <li>增加发送到目标机器后的操作命令，依赖于项目文件 (release&#x2F;project_init.sh)</li>
 </ul>

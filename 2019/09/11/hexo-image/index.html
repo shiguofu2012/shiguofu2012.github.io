@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+
+
+    
+    
+
+    <title>hexo引用图片无法显示 | 点滴诗词</title>
+    <meta name="author" content="shiguofu" />
+    <meta name="version" content="1.0.0" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="最近使用hexo，但是发现在文章中引用本地图片时总是显示不出来。插件安装与配置首先我们需要安装一个图片路径转换的插件，这个插件名字是hexo-asset-image1npm install hexo-asset-image --save但是这个插件的内容需要修改，不然还是会出现图片无法显示的问题。打开node_modules&amp;#x2F;hexo-asset-image&amp;#x2F;index.js，将内容更换为下面的代码123456789101112131415161718192021222324..." />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+
+    
+    <link rel="alternate" href="/atom.xml" title="点滴诗词" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="http://shiguofu.cn/favicon.ico">
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 8.1.1"></head>
+<body>
+
+    <main class="app">
+        <header class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">点滴诗词</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/backend">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="http://shiguofu2012.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%8F%92%E4%BB%B6%E5%AE%89%E8%A3%85%E4%B8%8E%E9%85%8D%E7%BD%AE"><span class="toc-number">1.</span> <span class="toc-text">插件安装与配置</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E7%94%9F%E6%88%90"><span class="toc-number">2.</span> <span class="toc-text">重新生成</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E5%90%8E%EF%BC%8C%E6%96%B0%E5%BB%BA%E5%8D%9A%E5%AE%A2"><span class="toc-number">2.1.</span> <span class="toc-text">修改后，新建博客</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E7%94%9F%E6%88%90html%E6%96%87%E4%BB%B6%EF%BC%8C%E7%9C%8B%E5%88%B0%E8%BE%93%E5%87%BA"><span class="toc-number">2.2.</span> <span class="toc-text">重新生成html文件，看到输出</span></a></li></ol></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content"><article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            hexo引用图片无法显示
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="http://shiguofu2012.github.io/2019/09/11/hexo-image/index.html">
+    
+    <i class="icon-calendar"></i>
+    
+    <time datetime="2019-09-11T10:08:16.000Z" itemprop="datePublished">2019-09-11</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag"></i>
+    <a class="article-tag-link" href="/tags/hexo/" rel="tag">hexo</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>最近使用hexo，但是发现在文章中引用本地图片时总是显示不出来。</p>
+<h4 id="插件安装与配置"><a href="#插件安装与配置" class="headerlink" title="插件安装与配置"></a>插件安装与配置</h4><p>首先我们需要安装一个图片路径转换的插件，这个插件名字是<strong>hexo-asset-image</strong></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hexo-asset-image --save</span><br></pre></td></tr></table></figure>
+
+<p>但是这个插件的内容需要修改，不然还是会出现图片无法显示的问题。</p>
+<p>打开node_modules&#x2F;hexo-asset-image&#x2F;index.js，将内容更换为下面的代码</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&#x27;use strict&#x27;</span>;</span><br><span class="line"><span class="keyword">var</span> cheerio = <span class="built_in">require</span>(<span class="string">&#x27;cheerio&#x27;</span>);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">getPosition</span>(<span class="params">str, m, i</span>) &#123;</span><br><span class="line">  <span class="keyword">return</span> str.<span class="title function_">split</span>(m, i).<span class="title function_">join</span>(m).<span class="property">length</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> version = <span class="title class_">String</span>(hexo.<span class="property">version</span>).<span class="title function_">split</span>(<span class="string">&#x27;.&#x27;</span>);</span><br><span class="line">hexo.<span class="property">extend</span>.<span class="property">filter</span>.<span class="title function_">register</span>(<span class="string">&#x27;after_post_render&#x27;</span>, <span class="keyword">function</span>(<span class="params">data</span>)&#123;</span><br><span class="line">  <span class="keyword">var</span> config = hexo.<span class="property">config</span>;</span><br><span class="line">  <span class="keyword">if</span>(config.<span class="property">post_asset_folder</span>)&#123;</span><br><span class="line">    	<span class="keyword">var</span> link = data.<span class="property">permalink</span>;</span><br><span class="line">	<span class="keyword">if</span>(version.<span class="property">length</span> &gt; <span class="number">0</span> &amp;&amp; <span class="title class_">Number</span>(version[<span class="number">0</span>]) == <span class="number">3</span>)</span><br><span class="line">	   <span class="keyword">var</span> beginPos = <span class="title function_">getPosition</span>(link, <span class="string">&#x27;/&#x27;</span>, <span class="number">1</span>) + <span class="number">1</span>;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	   <span class="keyword">var</span> beginPos = <span class="title function_">getPosition</span>(link, <span class="string">&#x27;/&#x27;</span>, <span class="number">3</span>) + <span class="number">1</span>;</span><br><span class="line">	<span class="comment">// In hexo 3.1.1, the permalink of &quot;about&quot; page is like &quot;.../about/index.html&quot;.</span></span><br><span class="line">	<span class="keyword">var</span> endPos = link.<span class="title function_">lastIndexOf</span>(<span class="string">&#x27;/&#x27;</span>) + <span class="number">1</span>;</span><br><span class="line">    link = link.<span class="title function_">substring</span>(beginPos, endPos);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> toprocess = [<span class="string">&#x27;excerpt&#x27;</span>, <span class="string">&#x27;more&#x27;</span>, <span class="string">&#x27;content&#x27;</span>];</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; toprocess.<span class="property">length</span>; i++)&#123;</span><br><span class="line">      <span class="keyword">var</span> key = toprocess[i];</span><br><span class="line"> </span><br><span class="line">      <span class="keyword">var</span> $ = cheerio.<span class="title function_">load</span>(data[key], &#123;</span><br><span class="line">        <span class="attr">ignoreWhitespace</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="attr">xmlMode</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="attr">lowerCaseTags</span>: <span class="literal">false</span>,</span><br><span class="line">        <span class="attr">decodeEntities</span>: <span class="literal">false</span></span><br><span class="line">      &#125;);</span><br><span class="line"></span><br><span class="line">      $(<span class="string">&#x27;img&#x27;</span>).<span class="title function_">each</span>(<span class="keyword">function</span>(<span class="params"></span>)&#123;</span><br><span class="line">		<span class="keyword">if</span> ($(<span class="variable language_">this</span>).<span class="title function_">attr</span>(<span class="string">&#x27;src&#x27;</span>))&#123;</span><br><span class="line">			<span class="comment">// For windows style path, we replace &#x27;\&#x27; to &#x27;/&#x27;.</span></span><br><span class="line">			<span class="keyword">var</span> src = $(<span class="variable language_">this</span>).<span class="title function_">attr</span>(<span class="string">&#x27;src&#x27;</span>).<span class="title function_">replace</span>(<span class="string">&#x27;\\&#x27;</span>, <span class="string">&#x27;/&#x27;</span>);</span><br><span class="line">			<span class="keyword">if</span>(!<span class="regexp">/http[s]*.*|\/\/.*/</span>.<span class="title function_">test</span>(src) &amp;&amp;</span><br><span class="line">			   !<span class="regexp">/^\s*\//</span>.<span class="title function_">test</span>(src)) &#123;</span><br><span class="line">			  <span class="comment">// For &quot;about&quot; page, the first part of &quot;src&quot; can&#x27;t be removed.</span></span><br><span class="line">			  <span class="comment">// In addition, to support multi-level local directory.</span></span><br><span class="line">			  <span class="keyword">var</span> linkArray = link.<span class="title function_">split</span>(<span class="string">&#x27;/&#x27;</span>).<span class="title function_">filter</span>(<span class="keyword">function</span>(<span class="params">elem</span>)&#123;</span><br><span class="line">				<span class="keyword">return</span> elem != <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">			  &#125;);</span><br><span class="line">			  <span class="keyword">var</span> srcArray = src.<span class="title function_">split</span>(<span class="string">&#x27;/&#x27;</span>).<span class="title function_">filter</span>(<span class="keyword">function</span>(<span class="params">elem</span>)&#123;</span><br><span class="line">				<span class="keyword">return</span> elem != <span class="string">&#x27;&#x27;</span> &amp;&amp; elem != <span class="string">&#x27;.&#x27;</span>;</span><br><span class="line">			  &#125;);</span><br><span class="line">			  <span class="keyword">if</span>(srcArray.<span class="property">length</span> &gt; <span class="number">1</span>)</span><br><span class="line">				srcArray.<span class="title function_">shift</span>();</span><br><span class="line">			  src = srcArray.<span class="title function_">join</span>(<span class="string">&#x27;/&#x27;</span>);</span><br><span class="line">			  $(<span class="variable language_">this</span>).<span class="title function_">attr</span>(<span class="string">&#x27;src&#x27;</span>, config.<span class="property">root</span> + link + src);</span><br><span class="line">			  <span class="variable language_">console</span>.<span class="property">info</span>&amp;&amp;<span class="variable language_">console</span>.<span class="title function_">info</span>(<span class="string">&quot;update link as:--&gt;&quot;</span>+config.<span class="property">root</span> + link + src);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;<span class="keyword">else</span>&#123;</span><br><span class="line">			<span class="variable language_">console</span>.<span class="property">info</span>&amp;&amp;<span class="variable language_">console</span>.<span class="title function_">info</span>(<span class="string">&quot;no src attr, skipped...&quot;</span>);</span><br><span class="line">			<span class="variable language_">console</span>.<span class="property">info</span>&amp;&amp;<span class="variable language_">console</span>.<span class="title function_">info</span>($(<span class="variable language_">this</span>));</span><br><span class="line">		&#125;</span><br><span class="line">      &#125;);</span><br><span class="line">      data[key] = $.<span class="title function_">html</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>打开_config.yml文件，修改下述内容</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">post_asset_folder: true</span><br><span class="line">url: &lt;你的github page地址或者其他域名&gt;</span><br></pre></td></tr></table></figure>
+
+<h4 id="重新生成"><a href="#重新生成" class="headerlink" title="重新生成"></a>重新生成</h4><h5 id="修改后，新建博客"><a href="#修改后，新建博客" class="headerlink" title="修改后，新建博客"></a>修改后，新建博客</h5><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new test</span><br></pre></td></tr></table></figure>
+
+<p>会发现在source&#x2F;_posts目录中，新建了test.md与同名的文件夹(<strong>test</strong>)</p>
+<h5 id="重新生成html文件，看到输出"><a href="#重新生成html文件，看到输出" class="headerlink" title="重新生成html文件，看到输出"></a>重新生成html文件，看到输出</h5><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update link as:--&gt;//&lt;url&gt;/2019/09/11/xxxx/1568192562650.png</span><br></pre></td></tr></table></figure>
+
+<p>访问即可看见图片出来啦！</p>
+
+        
+    </section>
+</article>
+
+
+
+</div>
+        <footer class="footer">
+    Powered by <a href="http://shiguofu.cn" target="_blank">carlshi</a>,  <a href="https://beian.miit.gov.cn/" target="_blank">鄂ICP备18003559号-1</a>
+
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://cdn.bootcss.com/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+            
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle();
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp();
+            }, 3000);
+        }
+    });
+    </script>
+    
+        <script type="text/javascript" src="/js/scrollspy.min.js"></script>
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+        </script>
+    
+
+</body>
+</html>

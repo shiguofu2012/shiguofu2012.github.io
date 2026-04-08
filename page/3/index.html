@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
 
-    
 
+    
     
 
     <title>点滴诗词</title>
@@ -451,7 +451,8 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install -y yum-utils \</span><br><span class="line">  device-mapper-persistent-data \</span><br><span class="line">  lvm2</span><br><span class="line">sudo yum-config-manager \</span><br><span class="line">    --add-repo \</span><br><span class="line">    https://download.docker.com/linux/centos/docker-ce.repo</span><br><span class="line">    </span><br><span class="line">sudo yum install docker-ce docker-ce-cli containerd.io</span><br></pre></td></tr></table></figure>
 
 <p>意外的是，竟然报错了</p>
-<p><img src="/install-centos8-docker/20200226175155741.png" alt="img"></p>
+<img src="/2020/05/03/install-centos8-docker/20200226175155741.png" class="" title="img">
+
 <p>就是说containerd.io需要1.2.2-3以上的版本</p>
 <p>难道镜像源中不满足，又纳闷，还是去官网下载了1.2.2-3版本，地址：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.13-3.1.el7.x86_64.rpm</span><br></pre></td></tr></table></figure>
@@ -915,7 +916,8 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis-server /etc/redis.conf</span><br></pre></td></tr></table></figure>
 
 <p>运行后出现下图，则运行成功：</p>
-<p><img src="/redis-install/redis-start.png" alt="redis-start"></p>
+<img src="/2019/09/17/redis-install/redis-start.png" class="" title="redis-start">
+
 <ul>
 <li>访问</li>
 </ul>
@@ -992,7 +994,8 @@
 <li>数据冗余<br>集群可增加延迟写的节点，防止误操作</li>
 <li>读写分离<br>适合读多写少的业务</li>
 </ul>
-<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><p><img src="/mongodb/mongo-replset.svg" alt="mongo结构"></p>
+<h5 id="典型结构"><a href="#典型结构" class="headerlink" title="典型结构"></a>典型结构</h5><img src="/2019/09/16/mongodb/mongo-replset.svg" class="" title="mongo结构">
+
 <p>集群中的所有节点都可接受读操作；默认的驱动连接时读主节点，可设置read_prefrence指定</p>
 <blockquote>
 <p>A replica set can have up to 50 members but only 7 voting members.</p>
@@ -1018,12 +1021,14 @@
 <li><strong>PSS</strong></li>
 </ul>
 <p>Primary + Secondary + Secondary模式，通过Primary和Secondary搭建的Replica Set</p>
-<p><img src="/mongodb/PSS.png" alt="PSS"></p>
+<img src="/2019/09/16/mongodb/PSS.png" class="" title="PSS">
+
 <ul>
 <li><strong>PSA</strong></li>
 </ul>
 <p>Primary + Secondary + Arbiter模式，使用Arbiter搭建Replica Set</p>
-<p><img src="/mongodb/PSA.png" alt="PSA"></p>
+<img src="/2019/09/16/mongodb/PSA.png" class="" title="PSA">
+
 <p>偶数个数据节点，加一个Arbiter构成的Replica Set</p>
 <h4 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h4><p>副本集通过 replSetInitiate 命令或 rs.initiate() 命令进行初始化。</p>
 <p>初始化后各个节点开始发送心跳消息，并发起 Primary 选举操作，获得大多数成员投票支持的节点，会成为 Primary，其余节点成为 Secondary。</p>
@@ -1122,7 +1127,8 @@
 <li>从库不能连接到主库(默认超过10s，可通过heartbeatTimeoutSecs参数控制)，由从库发起选举</li>
 </ul>
 <p>副本集的自动failover是通过心跳检测实现的，进而实现高可用</p>
-<p><img src="/mongodb/mongo-failover.png" alt="mongo-failover"></p>
+<img src="/2019/09/16/mongodb/mongo-failover.png" class="" title="mongo-failover">
+
 <h3 id="读写配置"><a href="#读写配置" class="headerlink" title="读写配置"></a>读写配置</h3><p><strong>Read Preference</strong></p>
 <blockquote>
 <p>All read preference modes except primary may return stale data because secondaries replicate operations from the primary with some delay. Ensure that your application can tolerate stale data if you choose to use a non-primary mode.</p>
